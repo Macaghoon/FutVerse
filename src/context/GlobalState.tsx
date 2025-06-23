@@ -2,10 +2,7 @@ import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, getDoc } from 'firebase/firestore';
-import { getMatchRequestsForTeam } from '../utils/firestoreMatches';
-import { listenForUserChats } from '../utils/firestoreChat';
-import type { ChatData } from '../utils/firestoreChat';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { 
   listenForUnreadNotificationsByType,
   markAllNotificationsAsRead 
@@ -33,7 +30,7 @@ interface GlobalStateProviderProps {
 
 export const GlobalStateProvider: React.FC<GlobalStateProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [pendingActions, setPendingActions] = useState(0);
   const [requestNotifications, setRequestNotifications] = useState(0);

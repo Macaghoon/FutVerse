@@ -25,32 +25,30 @@ import {
   InputGroup,
   InputLeftElement,
   VStack,
-  PopoverArrow,
-  PopoverCloseButton,
-  PopoverHeader,
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
 import { useNavigate } from "react-router-dom";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { app } from "../firebaseConfig";
-import { FaUser, FaSignOutAlt, FaBell, FaEnvelope, FaUsers } from "react-icons/fa";
+import { FaUser, FaSignOutAlt, FaBell, FaEnvelope } from "react-icons/fa";
 import { Icon } from "@chakra-ui/react";
 import { useDebounce } from "../hooks/useDebounce";
 import { globalSearch } from "../utils/firestoreSearch";
 import { useGlobalState } from "../context/GlobalState";
+import type { User } from "firebase/auth";
 
 const auth = getAuth(app);
 const db = getFirestore(app);
 
 const NavBar: React.FC = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
-  const [userData, setUserData] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{
-    teams: any[];
-    users: any[];
+    teams: Record<string, unknown>[];
+    users: Record<string, unknown>[];
   }>({ teams: [], users: [] });
   const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -119,10 +117,6 @@ const NavBar: React.FC = () => {
   const navBgColor = useColorModeValue("white", "gray.800");
   const navTextColor = useColorModeValue("gray.700", "white");
   const searchBgColor = useColorModeValue("white", "gray.700");
-
-  const iconColor = useColorModeValue("gray.800", "white");
-  const hoverBg = useColorModeValue("green.50", "gray.700");
-  const activeBg = useColorModeValue("green.100", "gray.600");
 
   return (
     <Flex
@@ -261,7 +255,7 @@ const NavBar: React.FC = () => {
                       </Text>
                       {searchResults.teams.map((team) => (
                         <Button
-                          key={team.id}
+                          key={typeof team.id === 'string' ? team.id : String(team.id)}
                           variant="ghost"
                           w="100%"
                           justifyContent="flex-start"
@@ -271,8 +265,8 @@ const NavBar: React.FC = () => {
                             setSearchQuery("");
                           }}
                         >
-                          <Avatar size="sm" src={team.logoUrl} name={team.name} mr={2} />
-                          {team.name}
+                          <Avatar size="sm" src={typeof team.logoUrl === 'string' ? team.logoUrl : undefined} name={typeof team.name === 'string' ? team.name : undefined} mr={2} />
+                          {(team as { name?: string })?.name}
                         </Button>
                       ))}
                     </Box>
@@ -284,7 +278,7 @@ const NavBar: React.FC = () => {
                       </Text>
                       {searchResults.users.map((player) => (
                         <Button
-                          key={player.id}
+                          key={typeof player.uid === 'string' ? player.uid : String(player.uid)}
                           variant="ghost"
                           w="100%"
                           justifyContent="flex-start"
@@ -294,8 +288,8 @@ const NavBar: React.FC = () => {
                             setSearchQuery("");
                           }}
                         >
-                          <Avatar size="sm" src={player.photoURL} name={player.displayName} mr={2} />
-                          {player.displayName}
+                          <Avatar size="sm" src={typeof player.photoURL === 'string' ? player.photoURL : undefined} name={typeof player.displayName === 'string' ? player.displayName : undefined} mr={2} />
+                          {(player as { displayName?: string })?.displayName}
                         </Button>
                       ))}
                     </Box>
@@ -322,8 +316,8 @@ const NavBar: React.FC = () => {
           >
             <Avatar
               size={"sm"}
-              src={userData?.photoURL || user.photoURL}
-              name={userData?.displayName || user.displayName || user.email}
+              src={typeof (userData as { photoURL?: string })?.photoURL === 'string' ? (userData as { photoURL?: string })?.photoURL : (typeof user.photoURL === 'string' ? user.photoURL : undefined)}
+              name={typeof (userData as { displayName?: string })?.displayName === 'string' ? (userData as { displayName?: string })?.displayName : (typeof user.displayName === 'string' ? user.displayName : (typeof user.email === 'string' ? user.email : undefined))}
             />
           </MenuButton>
           <MenuList>

@@ -11,19 +11,13 @@ import {
   Divider,
   useColorModeValue,
   HStack,
-  Spacer,
   Input,
   IconButton,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   FormControl,
   FormLabel,
   VStack,
   Image,
   useToast,
-  Spinner,
   Container,
   useDisclosure,
   Modal,
@@ -33,7 +27,6 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
-  Select,
   Badge,
   Tabs,
   TabList,
@@ -46,52 +39,37 @@ import {
   Stat,
   StatLabel,
   StatNumber,
-  StatHelpText,
-  Progress,
   Alert,
   AlertIcon,
 } from "@chakra-ui/react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { SearchIcon, AddIcon } from "@chakra-ui/icons";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
-import { app } from "../firebaseConfig";
-import { getFirestore, doc, getDoc, updateDoc, arrayRemove, writeBatch } from "firebase/firestore";
-import { createTeam, getTeamWithManagerAndMembers, updateTeamLogo, updateTeamCoverPhoto } from "../utils/firestoreTeam";
+import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
+import { createTeam, getTeamWithManagerAndMembers, updateTeamCoverPhoto } from "../utils/firestoreTeam";
 import { uploadFileToFirebase, validateImageFile } from "../utils/imageUpload";
 import {
   getPendingRequestsForUser,
   acceptRequest,
   declineRequest,
 } from "../utils/firestoreRequests";
-import type { Request, RequestType } from "../utils/firestoreRequests";
+import type { Request } from "../utils/firestoreRequests";
 import NavBar from "../components/NavBar";
 import { 
   FaTrophy, 
   FaUserPlus, 
   FaUsers, 
   FaCamera, 
-  FaUpload, 
-  FaUserTie, 
   FaEnvelope, 
-  FaIdCard, 
   FaCalendarCheck, 
   FaFutbol, 
   FaPlus, 
   FaMinus,
-  FaCrown,
-  FaChartLine,
-  FaBell,
   FaCheckCircle,
   FaTimes,
   FaExclamationTriangle,
   FaCalendarAlt,
   FaMapMarkerAlt,
-  FaShieldAlt,
-  FaEdit,
-  FaTrash,
-  FaEye,
-  FaEyeSlash,
   FaImage,
 } from "react-icons/fa";
 import { Icon } from "@chakra-ui/react";
@@ -111,13 +89,15 @@ const db = getFirestore();
 
 function ManageTeam() {
   const [user, setUser] = useState<User | null>(null);
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   
   const bgGradient = useColorModeValue(
     "linear(to-br, gray.50, blue.50, green.50)",
     "linear(to-br, gray.900, blue.900, green.900)"
   );
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -150,31 +130,60 @@ function ManageTeam() {
     );
   }
 
+  if (!user) {
+    return (
+      <Box minH="100vh" bgGradient={bgGradient}>
+        <NavBar />
+        <Flex justify="center" align="center" height="80vh">
+          <VStack spacing={4}>
+            <Icon as={FaExclamationTriangle} color="red.500" boxSize={8} />
+            <Text color={useColorModeValue("gray.700", "white")}>Please log in to manage your team.</Text>
+          </VStack>
+        </Flex>
+      </Box>
+    );
+  }
+
+  const userDataTyped = userData as { role?: string; teamId?: string } | null;
+  
+  if (!userDataTyped || userDataTyped.role !== 'manager' || !userDataTyped.teamId) {
+    return (
+      <Box minH="100vh" bgGradient={bgGradient}>
+        <NavBar />
+        <Container maxW="7xl" py={8}>
+          <VStack spacing={8} textAlign="center">
+            <Icon as={FaTrophy} color="green.500" boxSize={16} />
+            <Heading size="2xl" color={useColorModeValue("gray.700", "white")}>
+              Team Management
+            </Heading>
+            <Text color={useColorModeValue("gray.600", "gray.300")} fontSize="lg">
+              {!userDataTyped?.teamId 
+                ? "You need to create or join a team first." 
+                : "Only team managers can access this page."}
+            </Text>
+            <Button 
+              colorScheme="green" 
+              size="lg"
+              onClick={() => navigate("/team-registration")}
+            >
+              {!userDataTyped?.teamId ? "Create Team" : "Back to Home"}
+            </Button>
+          </VStack>
+        </Container>
+      </Box>
+    );
+  }
+
   return (
     <Box minH="100vh" bgGradient={bgGradient}>
       <NavBar />
-      <Container maxW="7xl" py={8}>
-        {user && userData ? (
-          userData.role === "manager" && userData.teamId ? (
-            <ManageTeamDashboard teamId={userData.teamId} managerId={user.uid} />
-          ) : (
-            <TeamRegistrationForm onRegistered={() => window.location.reload()} />
-          )
-        ) : (
-          <Flex justify="center" align="center" minH="60vh">
-            <VStack spacing={4}>
-              <Icon as={FaExclamationTriangle} color="red.500" boxSize={8} />
-              <Text color={useColorModeValue("gray.700", "white")}>Please log in to manage your team.</Text>
-            </VStack>
-          </Flex>
-        )}
-      </Container>
+      <ManageTeamDashboard teamId={userDataTyped.teamId} managerId={user.uid} />
     </Box>
   );
 }
 
 function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId: string }) {
-  const [teamData, setTeamData] = useState<any>(null);
+  const [teamData, setTeamData] = useState<Record<string, unknown> | null>(null);
   const [applications, setApplications] = useState<Request[]>([]);
   const [matchRequests, setMatchRequests] = useState<(MatchRequestData & { id: string })[]>([]);
   const [matches, setMatches] = useState<(MatchData & { id: string })[]>([]);
@@ -197,8 +206,9 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
   
   const cardBg = useColorModeValue("white", "gray.800");
   const textColor = useColorModeValue("gray.700", "white");
-  const mutedTextColor = useColorModeValue("gray.600", "gray.300");
   
+  const navigate = useNavigate();
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -214,9 +224,9 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
       const teamMatches = await getMatchesForTeam(teamId);
       setMatches(teamMatches);
 
-    } catch (err) {
+    } catch (error) {
       setError("Error fetching data.");
-      console.error(err);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -233,13 +243,16 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
 
   const handleCoverPhotoUpdated = (newUrl: string) => {
     // Optimistically update the UI
-    setTeamData((prevData: any) => ({
-      ...prevData,
-      team: {
-        ...prevData.team,
-        coverPhotoUrl: newUrl,
-      },
-    }));
+    setTeamData((prevData: Record<string, unknown> | null) => {
+      if (!prevData) return prevData;
+      return {
+        ...prevData,
+        team: {
+          ...(prevData.team as Record<string, unknown>),
+          coverPhotoUrl: newUrl,
+        },
+      };
+    });
     // Close the modal
     onCoverModalClose();
   };
@@ -251,8 +264,8 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
       toast({ title: "Result submitted for confirmation.", status: "success" });
       onResultModalClose();
       fetchData(); // Refresh data
-    } catch (error: any) {
-      toast({ title: "Error submitting result", description: error.message, status: "error" });
+    } catch (error) {
+      toast({ title: "Error submitting result", description: (error as Error).message, status: "error" });
     }
   };
 
@@ -261,8 +274,8 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
       await confirmMatchResult(matchId);
       toast({ title: "Match Confirmed!", description: "Points and stats have been updated.", status: "success" });
       fetchData();
-    } catch (error: any) {
-      toast({ title: "Error confirming match", description: error.message, status: "error" });
+    } catch (error) {
+      toast({ title: "Error confirming match", description: (error as Error).message, status: "error" });
     }
   };
 
@@ -271,8 +284,8 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
       await disputeMatchResult(matchId);
       toast({ title: "Match Disputed", description: "The result is now marked as disputed.", status: "warning" });
       fetchData();
-    } catch (error: any) {
-      toast({ title: "Error disputing match", description: error.message, status: "error" });
+    } catch (error) {
+      toast({ title: "Error disputing match", description: (error as Error).message, status: "error" });
     }
   };
   
@@ -287,10 +300,10 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
         isClosable: true,
       });
       setApplications(applications.filter((app) => app.id !== request.id));
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error accepting request.",
-        description: error.message,
+        description: (error as Error).message,
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -308,7 +321,7 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
         isClosable: true,
       });
       setApplications(applications.filter((app) => app.id !== request.id));
-    } catch (err) {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Could not decline the application.",
@@ -325,8 +338,8 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
       toast({ title: "Match Accepted!", status: "success" });
       setMatchRequests(matchRequests.filter(req => req.id !== requestId));
       fetchData(); // Refresh matches
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, status: "error" });
+    } catch (error) {
+      toast({ title: "Error", description: (error as Error).message, status: "error" });
     }
   };
 
@@ -335,8 +348,8 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
       await declineMatchRequest(requestId);
       toast({ title: "Match Declined", status: "info" });
       setMatchRequests(matchRequests.filter(req => req.id !== requestId));
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, status: "error" });
+    } catch (error) {
+      toast({ title: "Error", description: (error as Error).message, status: "error" });
     }
   };
 
@@ -368,9 +381,11 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
       await updateDoc(teamDocRef, { members: newMembers });
       console.log('[7] Updated team doc.');
 
-      setTeamData((prev: any) => {
+      setTeamData((prev: Record<string, unknown> | null) => {
         console.log('[8] Updating local state.');
-        const updatedMembers = prev.members.filter((member: any) => member.uid !== playerId);
+        if (!prev) return prev;
+        const members = (prev.members as any[]) || [];
+        const updatedMembers = members.filter((member: Record<string, unknown>) => (member.uid as string) !== playerId);
         return {
           ...prev,
           members: updatedMembers,
@@ -386,14 +401,14 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
         isClosable: true,
       });
       console.log('[10] Toast shown.');
-    } catch (e: unknown) {
-      console.error("Error during player removal process:", e);
+    } catch (error) {
+      console.error("Error during player removal process:", error);
       
       let message = "An unexpected error occurred. Please see console for details.";
-      if (e instanceof Error) {
-        message = e.message;
-      } else if (typeof e === 'string') {
-        message = e;
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'string') {
+        message = error;
       }
 
       toast({
@@ -427,782 +442,248 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
     </Alert>
   );
 
-  const { team } = teamData;
-  const finalCoverUrl = team.coverPhotoUrl || team.logoUrl;
+  const team = (teamData.team ?? {}) as Record<string, unknown>;
+  const finalCoverUrl = (team.coverPhotoUrl as string) || (team.logoUrl as string);
 
   return (
-    <React.Fragment>
-      {/* Header Section */}
-      <VStack spacing={6} mb={8}>
-        <Box textAlign="center">
-          <Heading 
-            size="2xl" 
-            bgGradient="linear(to-r, green.400, blue.500)"
-            bgClip="text"
-            fontWeight="black"
-            mb={2}
-            py={2}
-          >
-            Team Management
-          </Heading>
-          <Text color={mutedTextColor} fontSize="lg">
-            Manage your team, players, and matches
-          </Text>
-        </Box>
+    <Container maxW="7xl" py={8}>
+      <VStack spacing={8} align="stretch">
+        {/* Team Header */}
+        <Card bg={cardBg} borderRadius="2xl" boxShadow="xl" overflow="hidden">
+          <Box
+            h="200px"
+            w="100%"
+            bg={finalCoverUrl ? undefined : "#b5e3fa"}
+            bgImage={finalCoverUrl ? `url(${finalCoverUrl})` : undefined}
+            bgSize="cover"
+            bgPos="center"
+            position="relative"
+          />
+          {finalCoverUrl && (
+            <Box
+              position="absolute"
+              top={4}
+              right={4}
+            >
+              <IconButton
+                aria-label="Change cover photo"
+                icon={<FaCamera />}
+                colorScheme="whiteAlpha"
+                onClick={onCoverModalOpen}
+                size="sm"
+              />
+            </Box>
+          )}
+          
+          <CardBody p={8}>
+            <HStack justify="space-between" align="start" mb={6}>
+              <VStack align="start" spacing={2}>
+                <Heading size="xl" color={textColor}>
+                  {team.name as string}
+                </Heading>
+                <Text color={useColorModeValue("gray.600", "gray.300")}>
+                  Managed by {(teamData.manager as Record<string, unknown>)?.displayName as string}
+                </Text>
+              </VStack>
+              <Button
+                colorScheme="green"
+                leftIcon={<FaUserPlus />}
+                onClick={() => navigate("/team-registration")}
+              >
+                Add Player
+              </Button>
+            </HStack>
+
+            <Tabs variant="enclosed" colorScheme="green">
+              <TabList>
+                <Tab>Overview</Tab>
+                <Tab>Applications ({applications.length})</Tab>
+                <Tab>Match Requests ({matchRequests.length})</Tab>
+                <Tab>Matches</Tab>
+              </TabList>
+
+              <TabPanels>
+                <TabPanel>
+                  <TeamOverview teamData={teamData} onRemovePlayer={handleRemovePlayer} />
+                </TabPanel>
+                <TabPanel>
+                  <ApplicationsSection 
+                    applications={applications} 
+                    onAccept={handleAcceptApplication}
+                    onDecline={handleDeclineApplication}
+                  />
+                </TabPanel>
+                <TabPanel>
+                  <MatchRequests 
+                    requests={matchRequests}
+                    onAccept={handleAcceptMatch}
+                    onDecline={handleDeclineMatch}
+                  />
+                </TabPanel>
+                <TabPanel>
+                  <MatchesSection
+                    matches={matches}
+                    currentTeamId={teamId}
+                    managerId={managerId}
+                    onOpenSubmitModal={handleOpenSubmitModal}
+                    onConfirm={handleConfirmResult}
+                    onDispute={handleDisputeResult}
+                  />
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+          </CardBody>
+        </Card>
       </VStack>
 
-      {/* Team Overview Card */}
-      <Card
-        bg={cardBg}
-        borderRadius="2xl"
-        boxShadow="xl"
-        mb={8}
-        overflow="hidden"
-      >
-        <Box
-          h="200px"
-          position="relative"
-          bgImage={`url(${finalCoverUrl})`}
-          bgSize="cover"
-          bgPosition="center"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-        >
-          {/* Overlay */}
-          <Box
-            position="absolute"
-            w="full"
-            h="full"
-            bg={"blackAlpha.400"}
-            style={{ backdropFilter: 'blur(1px)' }}
-          />
+      {/* Cover Photo Modal */}
+      <CoverPhotoModal
+        isOpen={isCoverModalOpen}
+        onClose={onCoverModalClose}
+        onPhotoUpdated={handleCoverPhotoUpdated}
+        teamId={teamId}
+      />
 
-          <IconButton
-            aria-label="Change cover photo"
-            icon={<FaCamera />}
-            position="absolute"
-            top={4}
-            right={4}
-            size="sm"
-            colorScheme="whiteAlpha"
-            borderRadius="full"
-            onClick={onCoverModalOpen}
-          />
-
-          <VStack spacing={4} position="relative" zIndex={1} textAlign="center">
-              <Avatar 
-                size="2xl" 
-                src={team.logoUrl} 
-                name={team.name} 
-              bg="white"
-              padding="2px"
-            />
-            <Heading size="lg" color="white" textShadow="1px 1px 3px rgba(0,0,0,0.4)">
-              {team.name}
-            </Heading>
-          </VStack>
-        </Box>
-
-        <CardBody>
-          <HStack spacing={4} justify="space-around" py={2}>
-            <HStack>
-              <Icon as={FaTrophy} color="yellow.400" boxSize={8} />
-              <Stat>
-                <StatNumber fontSize="2xl" fontWeight="bold">
-                  {team.points || 0}
-                </StatNumber>
-                <StatLabel color={mutedTextColor}>Team Points</StatLabel>
-              </Stat>
-            </HStack>
-            <Divider orientation="vertical" h="50px" />
-            <HStack>
-              <Icon as={FaUsers} color="cyan.400" boxSize={8} />
-              <Stat>
-                <StatNumber fontSize="2xl" fontWeight="bold">
-                  {teamData.members.length}
-                </StatNumber>
-                <StatLabel color={mutedTextColor}>Members</StatLabel>
-              </Stat>
-            </HStack>
-          </HStack>
-        </CardBody>
-      </Card>
-
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={8} alignItems="start">
-        <VStack spacing={8} align="stretch">
-          <ManagerCard manager={teamData.manager} />
-          <PlayerApplications
-            applications={applications}
-            onAccept={handleAcceptApplication}
-            onDecline={handleDeclineApplication}
-          />
-          <MatchRequests
-            requests={matchRequests}
-            onAccept={handleAcceptMatch}
-            onDecline={handleDeclineMatch}
-          />
-        </VStack>
-        <VStack spacing={8} align="stretch">
-          <MatchesSection
-            matches={matches}
-            currentTeamId={teamId}
-            managerId={managerId}
-            onOpenSubmitModal={handleOpenSubmitModal}
-            onConfirm={handleConfirmResult}
-            onDispute={handleDisputeResult}
-            teamData={teamData}
-          />
-          <CurrentSquad
-            members={teamData.members}
-            managerId={teamData.manager.uid}
-            onRemovePlayer={handleRemovePlayer}
-            teamId={teamId}
-          />
-        </VStack>
-      </SimpleGrid>
-
+      {/* Submit Result Modal */}
       {selectedMatch && (
         <SubmitResultModal
           isOpen={isResultModalOpen}
           onClose={onResultModalClose}
           match={selectedMatch}
           onSubmit={handleSubmitResult}
-          teamData={teamData}
           managerId={managerId}
         />
       )}
-
-      <UpdateCoverPhotoModal
-        isOpen={isCoverModalOpen}
-        onClose={onCoverModalClose}
-        teamId={teamId}
-        onCoverPhotoUpdated={handleCoverPhotoUpdated}
-      />
-    </React.Fragment>
+    </Container>
   );
 }
 
-function TeamRegistrationForm({ onRegistered }: { onRegistered: (teamId: string) => void }) {
-  const [teamName, setTeamName] = useState("");
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string>("");
+function TeamRegistrationPrompt() {
+  const navigate = useNavigate();
+  return (
+    <Box>
+      <Heading size="lg" mb={4}>
+        <Icon as={FaTrophy} mr={2} />
+        Team Registration
+      </Heading>
+      <Text>
+        It seems like you're not a manager of a team yet. Register your team to start managing it.
+      </Text>
+      <Button colorScheme="green" mt={4} onClick={() => navigate("/team-registration")}>
+        Register Team
+      </Button>
+    </Box>
+  );
+}
+
+function UpdateCoverPhotoModal({ isOpen, onClose, teamId, onCoverPhotoUpdated }: {
+  isOpen: boolean;
+  onClose: () => void;
+  teamId: string;
+  onCoverPhotoUpdated: (newUrl: string) => void;
+}) {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const toast = useToast();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'cover') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const validation = validateImageFile(file);
       if (!validation.isValid) {
-        setError(validation.error || "Invalid file");
+        toast({ title: "Invalid file", description: validation.error, status: 'error', duration: 3000 });
         return;
       }
-      
-      if (type === 'logo') {
-      setLogoFile(file);
-      } else {
-        setCoverFile(file);
-      }
-      setError("");
-      
-      // Create preview
+      setCoverFile(file);
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (type === 'logo') {
-          setLogoPreview(event.target?.result as string);
-        } else {
-          setCoverPreview(event.target?.result as string);
-        }
-      };
+      reader.onload = (event) => setCoverPreview(event.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!teamName) {
-      setError("Team name is required.");
+  const handleUpload = async () => {
+    if (!coverFile) {
+      toast({ title: "No file selected", status: 'warning', duration: 3000 });
       return;
     }
     setLoading(true);
-    setError("");
-    
     try {
-      let logoUrl = "";
-      let coverUrl = "";
-      
-      if (logoFile) {
-        logoUrl = await uploadFileToFirebase(logoFile, `team-logos/${teamName}`);
+      const coverUrl = await uploadFileToFirebase(coverFile, `team-cover-photos/${teamId}`);
+      await updateTeamCoverPhoto(teamId, coverUrl);
+      toast({ title: "Cover photo updated!", status: 'success', duration: 3000 });
+      onCoverPhotoUpdated(coverUrl);
+    } catch (error: any) {
+      let description = "An unknown error occurred during upload.";
+      if (error.message) {
+        description = error.message;
       }
-      if (coverFile) {
-        coverUrl = await uploadFileToFirebase(coverFile, `team-cover-photos/${teamName}`);
-      }
-      
-      const teamId = await createTeam(teamName, logoUrl, coverUrl);
-      onRegistered(teamId);
-      
-      toast({
-        title: "Team created successfully!",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
+      toast({ 
+        title: "Upload Failed", 
+        description: description, 
+        status: 'error', 
+        duration: 9000, 
+        isClosable: true 
       });
-    } catch (err) {
-      if (err instanceof Error) setError(err.message);
-      else setError(String(err));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const cardBg = useColorModeValue("white", "gray.800");
-
   return (
-    <Card bg={cardBg} borderRadius="2xl" boxShadow="xl" p={8} maxW="lg" mx="auto" mt={8}>
-      <form onSubmit={handleSubmit}>
-        <VStack spacing={6} align="stretch">
-          <Box textAlign="center">
-            <Heading 
-              size="xl" 
-              bgGradient="linear(to-r, green.400, blue.500)"
-              bgClip="text"
-              fontWeight="black"
-            >
-              Register Your Team
-            </Heading>
-            <Text color={useColorModeValue("gray.600", "gray.300")}>
-              Create your team to get started
-            </Text>
-          </Box>
-      
-          <FormControl isRequired>
-        <FormLabel>Team Name</FormLabel>
-        <Input 
-          placeholder="Enter team name" 
-          value={teamName} 
-          onChange={e => setTeamName(e.target.value)} 
-              borderRadius="lg"
-        />
-      </FormControl>
-
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Update Cover Photo</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <VStack spacing={4}>
             <FormControl>
-        <FormLabel>Team Logo</FormLabel>
-              <VStack spacing={3}>
-          {logoPreview && (
-              <Image 
-                src={logoPreview} 
-                alt="Logo preview" 
-                    boxSize="100px"
-                    objectFit="cover"
-                    borderRadius="full"
-                    border="2px solid"
-                    borderColor="gray.200"
-                  />
-          )}
-          <Input
-            type="file"
-            accept="image/*"
-                  onChange={(e) => handleFileChange(e, 'logo')}
-            display="none"
-            id="logo-upload"
-          />
-          <Button
-            as="label"
-            htmlFor="logo-upload"
-            leftIcon={<FaCamera />}
-            colorScheme="blue"
-            variant="outline"
-            w="100%"
-            cursor="pointer"
-                  borderRadius="lg"
-          >
-            {logoFile ? "Change Logo" : "Upload Logo"}
-          </Button>
-              </VStack>
-      </FormControl>
-
-            <FormControl>
-              <FormLabel>Team Cover Photo</FormLabel>
-              <VStack spacing={3}>
-                {coverPreview && (
-                  <Image 
-                    src={coverPreview} 
-                    alt="Cover preview" 
-                    w="100%"
-                    h="100px"
-                    objectFit="cover"
-                    borderRadius="lg"
-                    border="2px solid"
-                    borderColor="gray.200"
-                  />
-                )}
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleFileChange(e, 'cover')}
-                  display="none"
-                  id="cover-upload"
-                />
-                <Button
-                  as="label"
-                  htmlFor="cover-upload"
-                  leftIcon={<FaImage />}
-                  colorScheme="purple"
-                  variant="outline"
-                  w="100%"
-                  cursor="pointer"
-                  borderRadius="lg"
-                >
-                  {coverFile ? "Change Cover" : "Upload Cover"}
-                </Button>
-              </VStack>
+              <FormLabel>New Cover Photo</FormLabel>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                p={1}
+              />
             </FormControl>
-          </SimpleGrid>
-
-          {error && <Alert status="error" borderRadius="lg"><AlertIcon />{error}</Alert>}
-      
-      <Button 
-        type="submit" 
-        colorScheme="green" 
-        isLoading={loading}
-        w="100%"
-            size="lg"
-            borderRadius="lg"
-            leftIcon={<FaPlus />}
-      >
-        Register Team
-      </Button>
-        </VStack>
-      </form>
-    </Card>
+            {coverPreview && (
+              <Image 
+                src={coverPreview} 
+                alt="Cover preview" 
+                w="100%"
+                h="150px"
+                objectFit="cover"
+                borderRadius="lg"
+              />
+            )}
+          </VStack>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" mr={3} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            colorScheme="green"
+            onClick={handleUpload}
+            isLoading={loading}
+            isDisabled={!coverFile}
+          >
+            Upload & Save
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 }
 
-const ManagerCard: React.FC<{ manager: any }> = ({ manager }) => {
-  const navigate = useNavigate();
-  const cardBg = useColorModeValue("white", "gray.800");
-  const textColor = useColorModeValue("gray.700", "white");
-  const mutedTextColor = useColorModeValue("gray.600", "gray.300");
-  
-  return (
-    <Card bg={cardBg} borderRadius="2xl" boxShadow="xl" overflow="hidden">
-      <Box
-        bgGradient="linear(to-r, green.400, blue.500)"
-        h="80px"
-        position="relative"
-      />
-      <CardBody pt={0}>
-        <VStack spacing={4} mt="-40px">
-        <Avatar
-          size="xl"
-          src={manager?.photoURL}
-          name={manager?.displayName}
-            borderWidth={4}
-            borderColor="white"
-            boxShadow="lg"
-        />
-          <Box textAlign="center">
-            <Heading size="lg" color={textColor} mb={2}>
-          {manager?.displayName || "N/A"}
-        </Heading>
-            <HStack justify="center" spacing={2} color={mutedTextColor} mb={4}>
-              <Icon as={FaUserTie} color="green.500" />
-              <Text fontSize="sm">Team Manager</Text>
-            </HStack>
-            <HStack justify="center" spacing={2} color={mutedTextColor} mb={4}>
-              <Icon as={FaEnvelope} />
-              <Text fontSize="sm">{manager?.email || "No email provided"}</Text>
-            </HStack>
-        <Button
-          colorScheme="green"
-          variant="outline"
-          size="sm"
-              leftIcon={<FaEye />}
-              borderRadius="lg"
-              onClick={() => navigate(`/user/${manager.uid}`)}
-        >
-          View Profile
-        </Button>
-      </Box>
-        </VStack>
-      </CardBody>
-    </Card>
-  );
-};
-
-const PlayerApplications: React.FC<{
-  applications: Request[];
-  onAccept: (request: Request) => void;
-  onDecline: (request: Request) => void;
-}> = ({ applications, onAccept, onDecline }) => {
-  const cardBg = useColorModeValue("white", "gray.800");
-  const textColor = useColorModeValue("gray.700", "white");
-
-  return (
-    <Card bg={cardBg} borderRadius="2xl" boxShadow="xl">
-      <CardHeader pb={applications.length > 0 ? 4 : 2}>
-        <HStack spacing={3}>
-          <Icon as={FaUserPlus} color="green.500" boxSize={5} />
-          <Heading size="md" color={textColor}>
-            Player Applications ({applications.length})
-      </Heading>
-        </HStack>
-      </CardHeader>
-      {applications.length > 0 && (
-        <CardBody pt={0}>
-          <VStack spacing={4} align="stretch">
-        {applications.map((app) => (
-          <Box
-            key={app.id}
-            p={4}
-            borderWidth="1px"
-                borderColor={useColorModeValue("gray.200", "gray.600")}
-            borderRadius="lg"
-                bg={useColorModeValue("gray.50", "gray.700")}
-              >
-                <HStack justify="space-between" align="center">
-                  <VStack align="start" spacing={1}>
-                    <Text fontWeight="semibold" color={textColor}>
-                      {app.fromName}
-                    </Text>
-                    <Text fontSize="sm" color={useColorModeValue("gray.600", "gray.300")}>
-                      Wants to join your team
-                    </Text>
-                  </VStack>
-                  <HStack spacing={2}>
-                    <Button
-                      size="sm"
-                      colorScheme="green"
-                      leftIcon={<FaCheckCircle />}
-                      onClick={() => onAccept(app)}
-                      borderRadius="lg"
-                    >
-                Accept
-              </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      colorScheme="red"
-                      leftIcon={<FaTimes />}
-                      onClick={() => onDecline(app)}
-                      borderRadius="lg"
-                    >
-                Decline
-              </Button>
-                  </HStack>
-            </HStack>
-          </Box>
-        ))}
-      </VStack>
-        </CardBody>
-      )}
-    </Card>
-  );
-};
-
-const MatchRequests: React.FC<{
-  requests: (MatchRequestData & {id: string})[];
-  onAccept: (requestId: string) => void;
-  onDecline: (requestId: string) => void;
-}> = ({ requests, onAccept, onDecline }) => {
-  const cardBg = useColorModeValue("white", "gray.800");
-  const textColor = useColorModeValue("gray.700", "white");
-  const mutedTextColor = useColorModeValue("gray.600", "gray.300");
-
-  return (
-    <Card bg={cardBg} borderRadius="2xl" boxShadow="xl">
-      <CardHeader pb={requests.length > 0 ? 4 : 2}>
-        <HStack spacing={3}>
-          <Icon as={FaCalendarCheck} color="green.500" boxSize={5} />
-          <Heading size="md" color={textColor}>
-            Match Requests ({requests.length})
-      </Heading>
-        </HStack>
-      </CardHeader>
-      {requests.length > 0 && (
-        <CardBody pt={0}>
-          <VStack spacing={4} align="stretch">
-        {requests.map((req) => {
-          if (!req.matchDateTime) {
-            return (
-                  <Alert key={req.id} status="error" borderRadius="lg">
-                    <AlertIcon />
-                    <Text>Invalid match request data for team: {req.requestingTeamName}. Please delete and recreate.</Text>
-                  </Alert>
-            )
-          }
-          const matchDateTime = req.matchDateTime.toDate();
-          return (
-            <Box
-              key={req.id}
-              p={4}
-              borderWidth="1px"
-                  borderColor={useColorModeValue("gray.200", "gray.600")}
-              borderRadius="lg"
-                  bg={useColorModeValue("gray.50", "gray.700")}
-                >
-                  <HStack justify="space-between" align="start">
-                    <VStack align="start" spacing={2}>
-                      <HStack spacing={2}>
-                        <Icon as={FaFutbol} color="green.500" />
-                        <Text fontWeight="bold" color={textColor}>
-                          vs. {req.requestingTeamName}
-                        </Text>
-                      </HStack>
-                      <HStack spacing={2} color={mutedTextColor}>
-                        <Icon as={FaCalendarAlt} />
-                <Text fontSize="sm">
-                  {matchDateTime.toLocaleDateString()} at {matchDateTime.toLocaleTimeString()}
-                </Text>
-                      </HStack>
-                      <HStack spacing={2} color={mutedTextColor}>
-                        <Icon as={FaMapMarkerAlt} />
-                        <Text fontSize="sm">
-                          {req.venue} | {req.format}
-                </Text>
-                      </HStack>
-                    </VStack>
-                    <HStack spacing={2}>
-                      <Button
-                        size="sm"
-                        colorScheme="green"
-                        leftIcon={<FaCheckCircle />}
-                        onClick={() => onAccept(req.id)}
-                        borderRadius="lg"
-                      >
-                  Accept
-                </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        colorScheme="red"
-                        leftIcon={<FaTimes />}
-                        onClick={() => onDecline(req.id)}
-                        borderRadius="lg"
-                      >
-                  Decline
-                </Button>
-                    </HStack>
-              </HStack>
-            </Box>
-          );
-        })}
-      </VStack>
-        </CardBody>
-      )}
-    </Card>
-  );
-};
-
-const MatchesSection: React.FC<{
-  matches: (MatchData & { id: string })[];
-  currentTeamId: string;
-  managerId: string;
-  onOpenSubmitModal: (match: MatchData & { id: string }) => void;
-  onConfirm: (matchId: string) => void;
-  onDispute: (matchId: string) => void;
-  teamData: any;
-}> = ({ matches, currentTeamId, managerId, onOpenSubmitModal, onConfirm, onDispute, teamData }) => {
-  const cardBg = useColorModeValue("white", "gray.800");
-  const textColor = useColorModeValue("gray.700", "white");
-  
-  const now = new Date();
-
-  const upcomingMatches = matches
-    .filter(m => m.status === 'scheduled' && m.matchDateTime && m.matchDateTime.toDate() > now)
-    .sort((a, b) => a.matchDateTime.toMillis() - b.matchDateTime.toMillis());
-
-  const actionRequiredMatches = matches
-    .filter(m => 
-        m.status === 'pending_confirmation' || 
-        m.status === 'disputed' ||
-        (m.status === 'scheduled' && m.matchDateTime && m.matchDateTime.toDate() <= now)
-    )
-    .sort((a, b) => a.matchDateTime.toMillis() - b.matchDateTime.toMillis());
-
-  const historyMatches = matches
-    .filter(m => m.status === 'confirmed')
-    .sort((a, b) => b.matchDateTime.toMillis() - a.matchDateTime.toMillis());
-
-  const MatchList: React.FC<{
-      matchList: (MatchData & { id: string })[],
-      emptyText: string
-  }> = ({ matchList, emptyText }) => (
-    matchList.length > 0 ? (
-      <VStack spacing={4} align="stretch">
-        {matchList.map(match => (
-      <MatchCard 
-        key={match.id} 
-        match={match}
-        currentTeamId={currentTeamId}
-        managerId={managerId}
-        onOpenSubmitModal={onOpenSubmitModal}
-        onConfirm={onConfirm}
-        onDispute={onDispute}
-        teamData={teamData}
-      />
-        ))}
-      </VStack>
-    ) : (
-      <Box textAlign="center" py={8}>
-        <Icon as={FaFutbol} color="gray.400" boxSize={12} mb={4} />
-        <Text color="gray.500">{emptyText}</Text>
-      </Box>
-    )
-  );
-
-  return (
-    <Card bg={cardBg} borderRadius="2xl" boxShadow="xl">
-      <CardHeader pb={4}>
-        <HStack spacing={3}>
-          <Icon as={FaFutbol} color="green.500" boxSize={5} />
-          <Heading size="md" color={textColor}>
-            Matches
-          </Heading>
-        </HStack>
-      </CardHeader>
-      <CardBody pt={0}>
-        <Tabs isFitted variant="enclosed" colorScheme="green">
-          <TabList borderRadius="lg" overflow="hidden">
-            <Tab _selected={{ color: 'white', bg: 'green.500' }}>
-              <HStack spacing={2}>
-                <Text>Upcoming</Text>
-                <Badge colorScheme="green" variant="solid" borderRadius="full" fontSize="xs">
-                  {upcomingMatches.length}
-                </Badge>
-              </HStack>
-            </Tab>
-            <Tab _selected={{ color: 'white', bg: 'orange.500' }}>
-              <HStack spacing={2}>
-                <Text>Action Required</Text>
-                <Badge colorScheme="orange" variant="solid" borderRadius="full" fontSize="xs">
-                  {actionRequiredMatches.length}
-                </Badge>
-              </HStack>
-            </Tab>
-            <Tab _selected={{ color: 'white', bg: 'gray.500' }}>
-              <HStack spacing={2}>
-                <Text>History</Text>
-                <Badge colorScheme="gray" variant="solid" borderRadius="full" fontSize="xs">
-                  {historyMatches.length}
-                </Badge>
-              </HStack>
-            </Tab>
-          </TabList>
-          <TabPanels>
-            <TabPanel>
-                <MatchList matchList={upcomingMatches} emptyText="No upcoming matches scheduled." />
-            </TabPanel>
-            <TabPanel>
-                <MatchList matchList={actionRequiredMatches} emptyText="No matches requiring action." />
-            </TabPanel>
-            <TabPanel>
-                 <MatchList matchList={historyMatches} emptyText="No completed matches yet." />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      </CardBody>
-    </Card>
-  );
-};
-
-const MatchCard: React.FC<{
-  match: MatchData & { id: string };
-  currentTeamId: string;
-  managerId: string;
-  onOpenSubmitModal: (match: MatchData & { id: string }) => void;
-  onConfirm: (matchId: string) => void;
-  onDispute: (matchId: string) => void;
-  teamData: any;
-}> = ({ match, currentTeamId, managerId, onOpenSubmitModal, onConfirm, onDispute, teamData }) => {
-  if (!match.matchDateTime) {
-    return (
-       <Box p={4} borderWidth="1px" borderRadius="lg">
-        <Text color="red.500">Invalid match data for {match.requestingTeamName} vs {match.opponentTeamName}. Please have the requester delete and recreate it.</Text>
-      </Box>
-    )
-  }
-  const matchDateTime = match.matchDateTime.toDate(); // Convert Firestore Timestamp to JS Date
-  const isRequestingManager = match.requestingTeamId === currentTeamId && teamData.manager.uid === managerId;
-  const isOpponentManager = match.opponentTeamId === currentTeamId && teamData.manager.uid === managerId;
-  const matchDateHasPassed = matchDateTime < new Date();
-
-  const renderStatusBadge = () => {
-    switch (match.status) {
-      case "scheduled":
-         if (!matchDateHasPassed) {
-           return <Badge colorScheme="blue">Scheduled</Badge>;
-         }
-         return <Badge colorScheme="yellow">Awaiting Result</Badge>;
-      case "pending_confirmation":
-        return <Badge colorScheme="orange">Pending Confirmation</Badge>;
-      case "confirmed":
-        return <Badge colorScheme="green">Confirmed</Badge>;
-      case "disputed":
-        return <Badge colorScheme="red">Disputed</Badge>;
-      default:
-        return null;
-    }
-  };
-
-  const renderActions = () => {
-    if (match.status === 'scheduled' && matchDateHasPassed && isRequestingManager) {
-      return <Button size="sm" colorScheme="blue" onClick={() => onOpenSubmitModal(match)}>Submit Result</Button>;
-    }
-    if (match.status === 'pending_confirmation' && isOpponentManager) {
-      return (
-        <HStack>
-          <Button size="sm" colorScheme="green" onClick={() => onConfirm(match.id)}>Confirm</Button>
-          <Button size="sm" colorScheme="red" onClick={() => onDispute(match.id)}>Dispute</Button>
-        </HStack>
-      );
-    }
-    if (match.status === 'pending_confirmation' && isRequestingManager) {
-      return <Text fontSize="xs" color="gray.500">Waiting for opponent to confirm.</Text>;
-    }
-    return null;
-  };
-
-  return (
-    <Box p={4} borderWidth="1px" borderRadius="lg" display="flex" justifyContent="space-between" alignItems="center">
-      <Box>
-        <HStack align="center" mb={1}>
-          <Text fontWeight="bold" fontSize="lg">
-            {match.requestingTeamName} vs {match.opponentTeamName}
-          </Text>
-          {renderStatusBadge()}
-        </HStack>
-        <Text fontSize="sm" color="gray.500">
-          {matchDateTime.toLocaleDateString()} at {matchDateTime.toLocaleTimeString()} | Venue: {match.venue}
-        </Text>
-        {match.status === 'pending_confirmation' && match.result && (
-          <Text fontSize="sm" mt={2}>
-            Submitted Score: <b>{match.result?.score.join(' - ')}</b>
-          </Text>
-        )}
-        {match.status === 'confirmed' && match.result && (
-           <Text fontSize="sm" mt={2}>
-            Final Score: <b>{match.result?.score.join(' - ')}</b>
-          </Text>
-        )}
-      </Box>
-      <Box>{renderActions()}</Box>
-    </Box>
-  );
-};
-
-const SubmitResultModal: React.FC<{
+function SubmitResultModal({ isOpen, onClose, match, onSubmit, managerId }: {
   isOpen: boolean;
   onClose: () => void;
   match: MatchData & { id: string };
   onSubmit: (result: MatchData['result']) => void;
-  teamData: any; // Contains members of both teams
   managerId: string;
-}> = ({ isOpen, onClose, match, onSubmit, teamData, managerId }) => {
+}) {
   const [scores, setScores] = useState<[number, number]>([0, 0]);
   const [scorers, setScorers] = useState<Record<string, number>>({});
   const toast = useToast();
@@ -1331,197 +812,382 @@ const SubmitResultModal: React.FC<{
       </ModalContent>
     </Modal>
   );
-};
+}
 
-const CurrentSquad: React.FC<{
-  members: any[];
-  managerId: string;
-  onRemovePlayer: (playerId: string, teamId: string) => void;
-  teamId: string;
-}> = ({ members, managerId, onRemovePlayer, teamId }) => {
-  const cardBg = useColorModeValue("white", "gray.800");
-  const textColor = useColorModeValue("gray.700", "white");
-  const mutedTextColor = useColorModeValue("gray.600", "gray.300");
-  
+function TeamOverview({ teamData, onRemovePlayer }: { teamData: Record<string, unknown> | null; onRemovePlayer: (playerId: string, teamId: string) => void }) {
+  const team = (teamData.team ?? {}) as Record<string, unknown>;
+  const finalCoverUrl = (team.coverPhotoUrl as string) || (team.logoUrl as string);
+
   return (
-    <Card bg={cardBg} borderRadius="2xl" boxShadow="xl">
+    <Box
+      h="200px"
+      position="relative"
+      bgImage={`url(${finalCoverUrl})`}
+      bgSize="cover"
+      bgPosition="center"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+    >
+      {/* Overlay */}
+      <Box
+        position="absolute"
+        w="full"
+        h="full"
+        bg={"blackAlpha.400"}
+        style={{ backdropFilter: 'blur(1px)' }}
+      />
+
+      <Avatar 
+        size="2xl" 
+        src={team.logoUrl} 
+        name={team.name as string} 
+        bg="white"
+        padding="2px"
+      />
+    </Box>
+  );
+}
+
+function ApplicationsSection({ applications, onAccept, onDecline }: {
+  applications: Request[];
+  onAccept: (request: Request) => void;
+  onDecline: (request: Request) => void;
+}) {
+  return (
+    <Card bg={useColorModeValue("white", "gray.800")} borderRadius="2xl" boxShadow="xl">
+      <CardHeader pb={applications.length > 0 ? 4 : 2}>
+        <HStack spacing={3}>
+          <Icon as={FaUserPlus} color="green.500" boxSize={5} />
+          <Heading size="md" color={useColorModeValue("gray.700", "white")}>
+            Player Applications ({applications.length})
+          </Heading>
+        </HStack>
+      </CardHeader>
+      {applications.length > 0 && (
+        <CardBody pt={0}>
+          <VStack spacing={4} align="stretch">
+            {applications.map((app) => (
+              <Box
+                key={app.id}
+                p={4}
+                borderWidth="1px"
+                borderColor={useColorModeValue("gray.200", "gray.600")}
+                borderRadius="lg"
+                bg={useColorModeValue("gray.50", "gray.700")}
+              >
+                <HStack justify="space-between" align="center">
+                  <VStack align="start" spacing={1}>
+                    <Text fontWeight="semibold" color={useColorModeValue("gray.700", "white")}>
+                      {app.fromName}
+                    </Text>
+                    <Text fontSize="sm" color={useColorModeValue("gray.600", "gray.300")}>
+                      Wants to join your team
+                    </Text>
+                  </VStack>
+                  <HStack spacing={2}>
+                    <Button
+                      size="sm"
+                      colorScheme="green"
+                      leftIcon={<FaCheckCircle />}
+                      onClick={() => onAccept(app)}
+                      borderRadius="lg"
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      colorScheme="red"
+                      leftIcon={<FaTimes />}
+                      onClick={() => onDecline(app)}
+                      borderRadius="lg"
+                    >
+                      Decline
+                    </Button>
+                  </HStack>
+                </HStack>
+              </Box>
+            ))}
+          </VStack>
+        </CardBody>
+      )}
+    </Card>
+  );
+}
+
+function MatchRequests({ requests, onAccept, onDecline }: {
+  requests: (MatchRequestData & {id: string})[];
+  onAccept: (requestId: string) => void;
+  onDecline: (requestId: string) => void;
+}) {
+  return (
+    <Card bg={useColorModeValue("white", "gray.800")} borderRadius="2xl" boxShadow="xl">
+      <CardHeader pb={requests.length > 0 ? 4 : 2}>
+        <HStack spacing={3}>
+          <Icon as={FaCalendarCheck} color="green.500" boxSize={5} />
+          <Heading size="md" color={useColorModeValue("gray.700", "white")}>
+            Match Requests ({requests.length})
+          </Heading>
+        </HStack>
+      </CardHeader>
+      {requests.length > 0 && (
+        <CardBody pt={0}>
+          <VStack spacing={4} align="stretch">
+            {requests.map((req) => {
+              if (!req.matchDateTime) {
+                return (
+                  <Alert key={req.id} status="error" borderRadius="lg">
+                    <AlertIcon />
+                    <Text>Invalid match request data for team: {req.requestingTeamName}. Please delete and recreate.</Text>
+                  </Alert>
+                )
+              }
+              const matchDateTime = req.matchDateTime.toDate();
+              return (
+                <Box
+                  key={req.id}
+                  p={4}
+                  borderWidth="1px"
+                  borderColor={useColorModeValue("gray.200", "gray.600")}
+                  borderRadius="lg"
+                  bg={useColorModeValue("gray.50", "gray.700")}
+                >
+                  <HStack justify="space-between" align="start">
+                    <VStack align="start" spacing={2}>
+                      <HStack spacing={2}>
+                        <Icon as={FaFutbol} color="green.500" />
+                        <Text fontWeight="bold" color={useColorModeValue("gray.700", "white")}>
+                          vs. {req.requestingTeamName}
+                        </Text>
+                      </HStack>
+                      <HStack spacing={2} color={useColorModeValue("gray.600", "gray.300")}>
+                        <Icon as={FaCalendarAlt} />
+                        <Text fontSize="sm">
+                          {matchDateTime.toLocaleDateString()} at {matchDateTime.toLocaleTimeString()}
+                        </Text>
+                      </HStack>
+                      <HStack spacing={2} color={useColorModeValue("gray.600", "gray.300")}>
+                        <Icon as={FaMapMarkerAlt} />
+                        <Text fontSize="sm">
+                          {req.venue} | {req.format}
+                        </Text>
+                      </HStack>
+                    </VStack>
+                    <HStack spacing={2}>
+                      <Button
+                        size="sm"
+                        colorScheme="green"
+                        leftIcon={<FaCheckCircle />}
+                        onClick={() => onAccept(req.id)}
+                        borderRadius="lg"
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        colorScheme="red"
+                        leftIcon={<FaTimes />}
+                        onClick={() => onDecline(req.id)}
+                        borderRadius="lg"
+                      >
+                        Decline
+                      </Button>
+                    </HStack>
+                  </HStack>
+                </Box>
+              );
+            })}
+          </VStack>
+        </CardBody>
+      )}
+    </Card>
+  );
+}
+
+function MatchesSection({ matches, currentTeamId, managerId, onOpenSubmitModal }: {
+  matches: (MatchData & { id: string })[];
+  currentTeamId: string;
+  managerId: string;
+  onOpenSubmitModal: (match: MatchData & { id: string }) => void;
+}) {
+  const now = new Date();
+
+  const upcomingMatches = matches
+    .filter(m => m.status === 'scheduled' && m.matchDateTime && m.matchDateTime.toDate() > now)
+    .sort((a, b) => a.matchDateTime.toMillis() - b.matchDateTime.toMillis());
+
+  const actionRequiredMatches = matches
+    .filter(m => 
+        m.status === 'pending_confirmation' || 
+        m.status === 'disputed' ||
+        (m.status === 'scheduled' && m.matchDateTime && m.matchDateTime.toDate() <= now)
+    )
+    .sort((a, b) => a.matchDateTime.toMillis() - b.matchDateTime.toMillis());
+
+  const historyMatches = matches
+    .filter(m => m.status === 'confirmed')
+    .sort((a, b) => b.matchDateTime.toMillis() - a.matchDateTime.toMillis());
+
+  const MatchList: React.FC<{
+      matchList: (MatchData & { id: string })[],
+      emptyText: string
+  }> = ({ matchList, emptyText }) => (
+    matchList.length > 0 ? (
+      <VStack spacing={4} align="stretch">
+        {matchList.map(match => (
+          <MatchCard 
+            key={match.id} 
+            match={match}
+            currentTeamId={currentTeamId}
+            managerId={managerId}
+            onOpenSubmitModal={onOpenSubmitModal}
+          />
+        ))}
+      </VStack>
+    ) : (
+      <Box textAlign="center" py={8}>
+        <Icon as={FaFutbol} color="gray.400" boxSize={12} mb={4} />
+        <Text color="gray.500">{emptyText}</Text>
+      </Box>
+    )
+  );
+
+  return (
+    <Card bg={useColorModeValue("white", "gray.800")} borderRadius="2xl" boxShadow="xl">
       <CardHeader pb={4}>
         <HStack spacing={3}>
-          <Icon as={FaUsers} color="green.500" boxSize={5} />
-          <Heading size="md" color={textColor}>
-            Current Squad ({members.length})
-      </Heading>
+          <Icon as={FaFutbol} color="green.500" boxSize={5} />
+          <Heading size="md" color={useColorModeValue("gray.700", "white")}>
+            Matches
+          </Heading>
         </HStack>
       </CardHeader>
       <CardBody pt={0}>
-      {members.length === 0 ? (
-          <Box textAlign="center" py={8}>
-            <Icon as={FaUsers} color="gray.400" boxSize={12} mb={4} />
-            <Text color="gray.500">
-          No players in your squad yet. Add some above!
-        </Text>
-          </Box>
-      ) : (
-        <VStack align="stretch" spacing={3}>
-          {members.map((player: any) => (
-              <HStack
-              key={player.uid}
-              p={3}
-                bg={useColorModeValue("gray.50", "gray.700")}
-                borderRadius="lg"
-                borderWidth="1px"
-                borderColor={useColorModeValue("gray.200", "gray.600")}
-                justify="space-between"
-                align="center"
-              >
-                <HStack spacing={3}>
-                  <Avatar size="sm" name={player.displayName} src={player.photoURL} />
-                  <VStack align="start" spacing={0}>
-                    <Text fontWeight="semibold" color={textColor}>
-                      {player.displayName}
-                    </Text>
-                    {player.uid === managerId && (
-                      <Badge colorScheme="yellow" variant="subtle" size="sm">
-                        Manager
-                      </Badge>
-                    )}
-                  </VStack>
-                </HStack>
-                {player.uid !== managerId && (
-                  <IconButton
-                    aria-label="Remove player"
-                    icon={<FaTrash />}
-                    size="sm"
-                    colorScheme="red"
-                    variant="ghost"
-                    onClick={() => onRemovePlayer(player.uid, teamId)}
-                    borderRadius="full"
-                  />
-                )}
+        <Tabs isFitted variant="enclosed" colorScheme="green">
+          <TabList borderRadius="lg" overflow="hidden">
+            <Tab _selected={{ color: 'white', bg: 'green.500' }}>
+              <HStack spacing={2}>
+                <Text>Upcoming</Text>
+                <Badge colorScheme="green" variant="solid" borderRadius="full" fontSize="xs">
+                  {upcomingMatches.length}
+                </Badge>
               </HStack>
-          ))}
-        </VStack>
-      )}
+            </Tab>
+            <Tab _selected={{ color: 'white', bg: 'orange.500' }}>
+              <HStack spacing={2}>
+                <Text>Action Required</Text>
+                <Badge colorScheme="orange" variant="solid" borderRadius="full" fontSize="xs">
+                  {actionRequiredMatches.length}
+                </Badge>
+              </HStack>
+            </Tab>
+            <Tab _selected={{ color: 'white', bg: 'gray.500' }}>
+              <HStack spacing={2}>
+                <Text>History</Text>
+                <Badge colorScheme="gray" variant="solid" borderRadius="full" fontSize="xs">
+                  {historyMatches.length}
+                </Badge>
+              </HStack>
+            </Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel>
+                <MatchList matchList={upcomingMatches} emptyText="No upcoming matches scheduled." />
+            </TabPanel>
+            <TabPanel>
+                <MatchList matchList={actionRequiredMatches} emptyText="No matches requiring action." />
+            </TabPanel>
+            <TabPanel>
+                 <MatchList matchList={historyMatches} emptyText="No completed matches yet." />
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </CardBody>
     </Card>
   );
-};
+}
 
-const TeamRegistrationPrompt: React.FC = () => {
-  return (
-    <Box>
-      <Heading size="lg" mb={4}>
-        <Icon as={FaTrophy} mr={2} />
-        Team Registration
-      </Heading>
-      <Text>
-        It seems like you're not a manager of a team yet. Register your team to start managing it.
-      </Text>
-      <Button colorScheme="green" mt={4}>
-        Register Team
-      </Button>
-    </Box>
-  );
-};
-
-function UpdateCoverPhotoModal({ isOpen, onClose, teamId, onCoverPhotoUpdated }: {
-  isOpen: boolean;
-  onClose: () => void;
-  teamId: string;
-  onCoverPhotoUpdated: (newUrl: string) => void;
+function MatchCard({ match, currentTeamId, managerId, onOpenSubmitModal }: {
+  match: MatchData & { id: string };
+  currentTeamId: string;
+  managerId: string;
+  onOpenSubmitModal: (match: MatchData & { id: string }) => void;
 }) {
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const toast = useToast();
+  if (!match.matchDateTime) {
+    return (
+       <Box p={4} borderWidth="1px" borderRadius="lg">
+        <Text color="red.500">Invalid match data for {match.requestingTeamName} vs {match.opponentTeamName}. Please have the requester delete and recreate it.</Text>
+      </Box>
+    )
+  }
+  const matchDateTime = match.matchDateTime.toDate(); // Convert Firestore Timestamp to JS Date
+  const isRequestingManager = match.requestingTeamId === currentTeamId && match.manager.uid === managerId;
+  const isOpponentManager = match.opponentTeamId === currentTeamId && match.manager.uid === managerId;
+  const matchDateHasPassed = matchDateTime < new Date();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const validation = validateImageFile(file);
-      if (!validation.isValid) {
-        toast({ title: "Invalid file", description: validation.error, status: 'error', duration: 3000 });
-        return;
-      }
-      setCoverFile(file);
-      const reader = new FileReader();
-      reader.onload = (event) => setCoverPreview(event.target?.result as string);
-      reader.readAsDataURL(file);
+  const renderStatusBadge = () => {
+    switch (match.status) {
+      case "scheduled":
+         if (!matchDateHasPassed) {
+           return <Badge colorScheme="blue">Scheduled</Badge>;
+         }
+         return <Badge colorScheme="yellow">Awaiting Result</Badge>;
+      case "pending_confirmation":
+        return <Badge colorScheme="orange">Pending Confirmation</Badge>;
+      case "confirmed":
+        return <Badge colorScheme="green">Confirmed</Badge>;
+      case "disputed":
+        return <Badge colorScheme="red">Disputed</Badge>;
+      default:
+        return null;
     }
   };
 
-  const handleUpload = async () => {
-    if (!coverFile) {
-      toast({ title: "No file selected", status: 'warning', duration: 3000 });
-      return;
+  const renderActions = () => {
+    if (match.status === 'scheduled' && matchDateHasPassed && isRequestingManager) {
+      return <Button size="sm" colorScheme="blue" onClick={() => onOpenSubmitModal(match)}>Submit Result</Button>;
     }
-    setLoading(true);
-    try {
-      const coverUrl = await uploadFileToFirebase(coverFile, `team-cover-photos/${teamId}`);
-      await updateTeamCoverPhoto(teamId, coverUrl);
-      toast({ title: "Cover photo updated!", status: 'success', duration: 3000 });
-      onCoverPhotoUpdated(coverUrl);
-    } catch (error: any) {
-      let description = "An unknown error occurred during upload.";
-      if (error.message) {
-        description = error.message;
-      }
-      toast({ 
-        title: "Upload Failed", 
-        description: description, 
-        status: 'error', 
-        duration: 9000, 
-        isClosable: true 
-      });
-    } finally {
-      setLoading(false);
+    if (match.status === 'pending_confirmation' && isOpponentManager) {
+      return (
+        <HStack>
+          <Button size="sm" colorScheme="green" onClick={() => onOpenSubmitModal(match)}>Confirm</Button>
+          <Button size="sm" colorScheme="red" onClick={() => onOpenSubmitModal(match)}>Dispute</Button>
+        </HStack>
+      );
     }
+    if (match.status === 'pending_confirmation' && isRequestingManager) {
+      return <Text fontSize="xs" color="gray.500">Waiting for opponent to confirm.</Text>;
+    }
+    return null;
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Update Cover Photo</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <VStack spacing={4}>
-            <FormControl>
-              <FormLabel>New Cover Photo</FormLabel>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                p={1}
-              />
-            </FormControl>
-            {coverPreview && (
-              <Image 
-                src={coverPreview} 
-                alt="Cover preview" 
-                w="100%"
-                h="150px"
-                objectFit="cover"
-                borderRadius="lg"
-              />
-            )}
-          </VStack>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="ghost" mr={3} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            colorScheme="green"
-            onClick={handleUpload}
-            isLoading={loading}
-            isDisabled={!coverFile}
-          >
-            Upload & Save
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+    <Box p={4} borderWidth="1px" borderRadius="lg" display="flex" justifyContent="space-between" alignItems="center">
+      <Box>
+        <HStack align="center" mb={1}>
+          <Text fontWeight="bold" fontSize="lg">
+            {match.requestingTeamName} vs {match.opponentTeamName}
+          </Text>
+          {renderStatusBadge()}
+        </HStack>
+        <Text fontSize="sm" color="gray.500">
+          {matchDateTime.toLocaleDateString()} at {matchDateTime.toLocaleTimeString()} | Venue: {match.venue}
+        </Text>
+        {match.status === 'pending_confirmation' && match.result && (
+          <Text fontSize="sm" mt={2}>
+            Submitted Score: <b>{match.result?.score.join(' - ')}</b>
+          </Text>
+        )}
+        {match.status === 'confirmed' && match.result && (
+           <Text fontSize="sm" mt={2}>
+            Final Score: <b>{match.result?.score.join(' - ')}</b>
+          </Text>
+        )}
+      </Box>
+      <Box>{renderActions()}</Box>
+    </Box>
   );
 }
 

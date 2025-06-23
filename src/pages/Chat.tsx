@@ -34,9 +34,9 @@ const db = getFirestore(app);
 // Custom hook for managing all chat data and state
 const useChatData = () => {
   const location = useLocation();
-  const [chats, setChats] = useState<any[]>([]);
-  const [selectedChat, setSelectedChat] = useState<any | null>(null);
-  const [otherUsers, setOtherUsers] = useState<Record<string, any>>({});
+  const [chats, setChats] = useState<ChatData[]>([]);
+  const [selectedChat, setSelectedChat] = useState<ChatData | null>(null);
+  const [otherUsers, setOtherUsers] = useState<Record<string, User>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentUser = auth.currentUser;
@@ -85,7 +85,7 @@ const useChatData = () => {
 
     const usersToFetch = new Set<string>();
     chats.forEach(chat => {
-      const otherUserId = chat.participants.find((p: string) => p !== currentUser.uid);
+      const otherUserId = (chat as any).participants.find((p: string) => p !== currentUser.uid);
       if (otherUserId && !otherUsers[otherUserId]) {
         usersToFetch.add(otherUserId);
       }
@@ -94,11 +94,11 @@ const useChatData = () => {
     if (usersToFetch.size === 0) return;
 
     const fetchNewUsers = async () => {
-      const newUsers: Record<string, any> = {};
+      const newUsers: Record<string, User> = {};
       for (const userId of Array.from(usersToFetch)) {
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
-          newUsers[userId] = userDoc.data();
+          newUsers[userId] = userDoc.data() as User;
         }
       }
       setOtherUsers(prev => ({ ...prev, ...newUsers }));
@@ -125,7 +125,7 @@ const useChatData = () => {
             const chatRef = doc(db, "chats", chatId);
             const chatSnap = await getDoc(chatRef);
             if (chatSnap.exists()) {
-              const chatData = { id: chatSnap.id, ...chatSnap.data() };
+              const chatData = { id: chatSnap.id, ...chatSnap.data() } as ChatData;
               // We need to make sure this new chat is also in the main list
               setChats(prevChats => {
                 if (prevChats.some(c => c.id === chatData.id)) {
@@ -195,7 +195,7 @@ const ChatPage: React.FC = () => {
   
   const getOtherUserInChat = (chat: any) => {
     if (!chat || !currentUser) return null;
-    const otherUserId = chat.participants.find((p: string) => p !== currentUser.uid);
+    const otherUserId = (chat as any).participants.find((p: string) => p !== currentUser.uid);
     return otherUsers[otherUserId];
   };
 
@@ -271,7 +271,7 @@ const ChatList: React.FC<{
     >
       <Heading size="md" mb={4}>Conversations</Heading>
       {chats.map(chat => {
-        const otherUserId = chat.participants.find((p: string) => p !== currentUser.uid);
+        const otherUserId = (chat as any).participants.find((p: string) => p !== currentUser.uid);
         const otherUser = otherUsers[otherUserId];
 
         return (

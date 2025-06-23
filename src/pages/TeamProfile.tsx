@@ -42,10 +42,10 @@ const db = getFirestore();
 const TeamProfile: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
-  const [teamData, setTeamData] = useState<any>(null);
+  const [teamData, setTeamData] = useState<Record<string, unknown> | null>(null);
   const [matches, setMatches] = useState<(MatchData & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserData, setCurrentUserData] = useState<any>(null);
+  const [currentUserData, setCurrentUserData] = useState<Record<string, unknown> | null>(null);
   const toast = useToast();
 
   const bgColor = useColorModeValue("gray.50", "gray.900");

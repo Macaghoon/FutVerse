@@ -12,15 +12,7 @@ import {
   Link,
   Icon,
   Input,
-  Tabs,
-  TabList,
-  TabPanels,
-  TabPanel,
-  Tab,
   Flex,
-  Divider,
-  Tooltip,
-  FormControl,
   useDisclosure,
   Modal,
   ModalOverlay,
@@ -30,41 +22,26 @@ import {
   ModalFooter,
   ModalCloseButton,
   Image,
-  Spinner,
   useToast,
   Stat,
   StatNumber,
   StatLabel,
-  SimpleGrid,
-  IconButton,
+  SimpleGrid
 } from "@chakra-ui/react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
 import { getAuth, updateProfile } from "firebase/auth";
 import {
   FaUser,
-  FaEnvelope,
-  FaMapMarkerAlt,
-  FaCalendarAlt,
   FaTrophy,
   FaUsers,
-  FaFutbol,
-  FaStar,
   FaFacebook,
   FaTwitter,
   FaInstagram,
   FaLinkedin,
   FaEnvelopeOpenText,
-  FaUserPlus,
-  FaCog,
-  FaFutbol as FaFootball,
-  FaShieldAlt,
-  FaInfo,
-  FaPhone,
   FaCamera,
-  FaCheck,
-  FaEye,
-  FaUserTie,
+  FaMapMarkerAlt
 } from "react-icons/fa";
 import NavBar from "../components/NavBar";
 import { getTeamWithManagerAndMembers } from "../utils/firestoreTeam";
@@ -76,26 +53,16 @@ import { uploadFileToFirebase } from '../utils/imageUpload';
 const db = getFirestore();
 const auth = getAuth();
 
-const TABS = [
-  { label: "Personal", icon: FaUser },
-  { label: "Football", icon: FaFootball },
-  { label: "Team", icon: FaShieldAlt },
-  { label: "Settings", icon: FaCog },
-];
-
 const UserProfile: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const cardBg = useColorModeValue("white", "gray.800");
-  const [profile, setProfile] = useState<any>(null);
-  const [teamData, setTeamData] = useState<any>(null);
+  const [profile, setProfile] = useState<Record<string, unknown> | null>(null);
+  const [teamData, setTeamData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUserData, setCurrentUserData] = useState<any>(null);
-  const [managerTeamData, setManagerTeamData] = useState<any>(null);
-  const [tabIndex, setTabIndex] = useState(0);
-  const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState<any>({});
-  const [posts, setPosts] = useState<any[]>([]);
+  const [currentUserData, setCurrentUserData] = useState<Record<string, unknown> | null>(null);
+  const [managerTeamData, setManagerTeamData] = useState<Record<string, unknown> | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [postImage, setPostImage] = useState<File | null>(null);
   const [postImagePreview, setPostImagePreview] = useState<string>("");
@@ -115,7 +82,6 @@ const UserProfile: React.FC = () => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setProfile(userData);
-          setForm(userData);
           if (userData.teamId) {
             const team = await getTeamWithManagerAndMembers(userData.teamId);
             setTeamData(team);
@@ -243,6 +209,8 @@ const UserProfile: React.FC = () => {
 
   // --- LAYOUT STARTS HERE ---
   console.log('auth.currentUser?.uid', auth.currentUser?.uid, 'profile.uid', profile.uid);
+  const managerTeam = (managerTeamData?.team ?? {}) as { [key: string]: any };
+  const team = (teamData?.team ?? {}) as { [key: string]: any };
   return (
     <Box minH="100vh" bgGradient="linear(to-br, blue.50, green.50, white)" pb={8}>
       <NavBar />

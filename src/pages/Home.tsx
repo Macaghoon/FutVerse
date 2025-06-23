@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
   Box,
   Heading,
   Button,
-  Flex,
   Text,
   HStack,
   VStack,
@@ -13,20 +12,16 @@ import {
   useColorModeValue,
   Container,
   Badge,
-  SimpleGrid,
-  Image,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { 
   FaUsers, 
   FaTrophy, 
-  FaCalendarAlt, 
-  FaMapMarkerAlt,
   FaArrowRight,
   FaPlay,
   FaCog
 } from "react-icons/fa";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { app } from "../firebaseConfig";
 import NavBar from "../components/NavBar";
 
@@ -58,8 +53,6 @@ const auth = getAuth(app);
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   const bgGradient = useColorModeValue(
     "linear(to-br, gray.50, blue.50, green.50)",
@@ -73,16 +66,9 @@ const Home: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       console.log("ManageTeam user:", currentUser);
-      setUser(currentUser);
-      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/login");
-  };
 
   return (
     <Box minH="100vh" bgGradient={bgGradient}>
@@ -201,77 +187,46 @@ const Home: React.FC = () => {
               fontSize="lg" 
               maxW="2xl"
             >
-              Everything you need to take your football experience to the next level
+              Everything you need to organize, manage, and enjoy football, all in one powerful platform.
             </Text>
           </Box>
-          
+
           <Grid 
-            templateColumns={{ base: "1fr", lg: "repeat(3, 1fr)" }} 
-            gap={8}
+            templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} 
+            gap={8} 
             w="full"
+            animation="fadeInUp 0.8s ease-out 0.6s both"
           >
             {features.map((feature, index) => (
-              <GridItem key={feature.title}>
+              <GridItem key={index}>
                 <Box
                   bg={cardBg}
                   p={8}
-                  borderRadius="3xl"
+                  borderRadius="2xl"
                   boxShadow="xl"
-                  textAlign="center"
-                  position="relative"
-                  overflow="hidden"
-                  animation={`fadeInUp 0.8s ease-out ${0.8 + index * 0.2}s both`}
+                  h="full"
+                  border="1px solid"
+                  borderColor={useColorModeValue("gray.200", "gray.700")}
                   _hover={{
-                    transform: "translateY(-8px)",
+                    transform: "translateY(-4px)",
                     boxShadow: "2xl",
                   }}
-                  transition="all 0.3s"
+                  transition="all 0.3s ease"
                 >
-                  {/* Gradient background circle */}
-                  <Box
-                    position="absolute"
-                    top="-50px"
-                    right="-50px"
-                    w="100px"
-                    h="100px"
-                    borderRadius="full"
-                    bgGradient={feature.gradient}
-                    opacity="0.1"
-                    animation="pulse 3s ease-in-out infinite"
-                  />
-                  
-                  <VStack spacing={6}>
+                  <VStack spacing={6} align="start">
                     <Box
-                      w="80px"
-                      h="80px"
-                      borderRadius="full"
+                      p={4}
+                      borderRadius="xl"
                       bgGradient={feature.gradient}
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                      boxShadow="lg"
+                      color="white"
                     >
-                      <Icon 
-                        as={feature.icon} 
-                        color="white" 
-                        boxSize={8}
-                      />
+                      <Icon as={feature.icon} boxSize={8} />
                     </Box>
-                    
-                    <VStack spacing={3}>
-                      <Heading 
-                        as="h4" 
-                        size="lg" 
-                        color={textColor}
-                        fontWeight="bold"
-                      >
+                    <VStack spacing={3} align="start">
+                      <Heading size="lg" color={textColor} fontWeight="bold">
                         {feature.title}
                       </Heading>
-                      <Text 
-                        color={mutedTextColor} 
-                        fontSize="md"
-                        lineHeight="tall"
-                      >
+                      <Text color={mutedTextColor} lineHeight="tall">
                         {feature.desc}
                       </Text>
                     </VStack>
@@ -281,44 +236,6 @@ const Home: React.FC = () => {
             ))}
           </Grid>
         </VStack>
-      </Container>
-
-      {/* CTA Section */}
-      <Container maxW="7xl" py={16}>
-        <Box
-          bgGradient="linear(to-r, green.500, blue.500)"
-          borderRadius="3xl"
-          p={12}
-          textAlign="center"
-          color="white"
-          animation="fadeInUp 0.8s ease-out 1.4s both"
-        >
-          <VStack spacing={6}>
-            <Heading size="2xl" fontWeight="black">
-              Ready to Transform Your Football Experience?
-            </Heading>
-            <Text fontSize="lg" maxW="2xl" opacity="0.9">
-              Join local players and teams who are already using FutVerse to organize games, 
-              manage teams, and build lasting connections in the football community.
-            </Text>
-            <Button
-              size="lg"
-              colorScheme="whiteAlpha"
-              fontWeight="bold"
-              px={10}
-              py={6}
-              fontSize="lg"
-              onClick={() => navigate("/teams")}
-              _hover={{
-                bg: "whiteAlpha.300",
-                transform: "translateY(-2px)",
-              }}
-              transition="all 0.2s"
-            >
-              Get Started Today
-            </Button>
-          </VStack>
-        </Box>
       </Container>
     </Box>
   );

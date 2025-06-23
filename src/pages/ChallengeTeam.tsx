@@ -25,7 +25,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const ChallengeTeam: React.FC = () => {
-  const [managerTeam, setManagerTeam] = useState<any>(null);
+  const [managerTeam, setManagerTeam] = useState<Record<string, unknown> | null>(null);
   const [matchDate, setMatchDate] = useState("");
   const [venue, setVenue] = useState("");
   const [format, setFormat] = useState<"2-halves" | "4-quarters">("2-halves");
@@ -79,10 +79,10 @@ const ChallengeTeam: React.FC = () => {
 
     try {
       await sendMatchRequest({
-        requestingTeamId: managerTeam.id,
-        requestingTeamName: managerTeam.name,
-        opponentTeamId: opponentTeam.id,
-        opponentTeamName: opponentTeam.name,
+        requestingTeamId: String(managerTeam?.id ?? ''),
+        requestingTeamName: String(managerTeam?.name ?? ''),
+        opponentTeamId: String(opponentTeam?.id ?? ''),
+        opponentTeamName: String(opponentTeam?.name ?? ''),
         matchDateTime: new Date(matchDate),
         venue,
         format,
@@ -90,7 +90,7 @@ const ChallengeTeam: React.FC = () => {
 
       toast({
         title: "Challenge Sent!",
-        description: `Your match request has been sent to ${opponentTeam.name}.`,
+        description: `Your match request has been sent to ${String(opponentTeam.name ?? '')}`,
         status: "success",
         duration: 5000,
         isClosable: true,
@@ -124,7 +124,7 @@ const ChallengeTeam: React.FC = () => {
       <Flex align="center" justify="center" minH="calc(100vh - 80px)" bgGradient="linear(to-br, gray.50, blue.50)">
         <VStack spacing={8} p={8} bg="white" rounded="lg" boxShadow="xl" w={{ base: "90%", md: "500px" }}>
           <Heading as="h1" size="lg" textAlign="center" color="gray.700">
-            Challenge {opponentTeam?.name}
+            Challenge {String(opponentTeam?.name ?? '')}
           </Heading>
           
           {error && (
