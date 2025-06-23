@@ -138,13 +138,9 @@ const UserRegister: React.FC = () => {
       });
 
       navigate("/home");
-    } catch (err: unknown) {
-      if (err instanceof Error && 'code' in err) {
-        if (err.code === 'auth/email-already-in-use') {
-          setError("This email is already in use. Please try another one.");
-        } else {
-          setError("An unexpected error occurred. Please try again.");
-        }
+    } catch (err: any) {
+      if (err.code === 'auth/email-already-in-use') {
+        setError("This email is already in use. Please try another one.");
       } else {
         setError("An unexpected error occurred. Please try again.");
       }

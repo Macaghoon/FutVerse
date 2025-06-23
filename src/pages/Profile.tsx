@@ -16,6 +16,7 @@ import {
   Select,
   Divider,
   Badge,
+  IconButton,
   useToast,
   useColorModeValue,
   Card,
@@ -29,19 +30,26 @@ import {
   Tab,
   TabPanel,
   Switch,
+  Link,
+  Image as ChakraImage,
+  Alert,
+  AlertIcon,
   Container,
   Stat,
   StatLabel,
   StatNumber,
+  StatHelpText,
   SimpleGrid,
+  Progress,
   Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
   ModalBody,
   ModalCloseButton,
+  useDisclosure,
 } from "@chakra-ui/react";
-import { getAuth, updateProfile, User } from "firebase/auth";
+import { getAuth, updateProfile } from "firebase/auth";
 import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -53,23 +61,32 @@ import {
   FaTrophy,
   FaUsers,
   FaCog,
+  FaHeart,
   FaShieldAlt,
   FaEdit,
   FaSave,
   FaTimes,
+  FaFacebook,
+  FaTwitter,
+  FaInstagram,
+  FaLinkedin,
   FaFutbol,
+  FaStar,
   FaBell,
   FaEye,
+  FaEyeSlash,
+  FaCheckCircle,
+  FaExclamationTriangle,
   FaUserEdit,
+  FaSignOutAlt,
+  FaTrash,
   FaCamera,
-  FaExclamationTriangle
 } from "react-icons/fa";
 import { Icon } from "@chakra-ui/react";
 import NavBar from "../components/NavBar";
-import { uploadFileToFirebase } from "../utils/imageUpload";
+import { uploadFileToFirebase, validateImageFile } from "../utils/imageUpload";
 import { getTeamWithManagerAndMembers } from "../utils/firestoreTeam";
 import { addUserPost, getUserPosts, deleteUserPost } from '../utils/firestoreUserPosts';
-import type { User as AuthUser } from "firebase/auth";
 
 const auth = getAuth();
 const db = getFirestore();
@@ -114,11 +131,14 @@ interface Post {
 }
 
 const Profile: React.FC = () => {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [teamData, setTeamData] = useState<Record<string, unknown> | null>(null);
+  const [teamData, setTeamData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [isProfileModalOpen, setProfileModalOpen] = useState(false);
@@ -128,6 +148,7 @@ const Profile: React.FC = () => {
   const [postImage, setPostImage] = useState<File | null>(null);
   const [postPreview, setPostPreview] = useState('');
   const [postCaption, setPostCaption] = useState('');
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -207,6 +228,77 @@ const Profile: React.FC = () => {
     } catch (error) {
       console.error("Error loading team data:", error);
     }
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        toast({
+          title: "Invalid file",
+          description: validation.error,
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+      
+      setProfilePhoto(file);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && auth.currentUser) {
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        toast({ title: "Invalid Image", description: validation.error, status: "error" });
+        return;
+      }
+      setPhotoLoading(true);
+      try {
+        const photoURL = await uploadFileToFirebase(file, `user-photos/${auth.currentUser.uid}`);
+        
+        await updateProfile(auth.currentUser, { photoURL });
+        const userDocRef = doc(db, "users", auth.currentUser.uid);
+        await updateDoc(userDocRef, {
+          photoURL: photoURL
+        });
+        
+        setProfile(prev => prev ? { ...prev, photoURL: photoURL } : null);
+        toast({ title: "Profile photo updated!", status: "success" });
+
+      } catch (error) {
+        toast({ title: "Upload Failed", description: String(error), status: "error" });
+      } finally {
+        setPhotoLoading(false);
+      }
+    }
+  };
+
+  const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    setPhotoLoading(true);
+    try {
+      const url = await uploadFileToFirebase(file, `user-photos/${user.uid}`);
+      await updateProfile(user, { photoURL: url });
+      await updateDoc(doc(db, 'users', user.uid), { photoURL: url });
+      setProfile(prev => prev ? { ...prev, photoURL: url } : prev);
+      setPhotoPreview("");
+      toast({ title: 'Profile photo updated!', status: 'success', duration: 2000 });
+    } catch (err: any) {
+      toast({ title: 'Failed to update photo', description: err.message, status: 'error', duration: 3000 });
+    }
+    setPhotoLoading(false);
   };
 
   const handleSave = async () => {
@@ -354,8 +446,6 @@ const Profile: React.FC = () => {
     );
   }
 
-  const team = (teamData?.team ?? {}) as { uid?: string; name?: string; coverPhotoUrl?: string; displayName?: string };
-
   return (
     <Box minH="100vh" bgGradient={bgGradient}>
       <NavBar />
@@ -400,7 +490,7 @@ const Profile: React.FC = () => {
               <Flex justify="center" align="center" mt={-12} mb={2}>
                 <Avatar 
                   size="xl" 
-                  src={profile?.photoURL}
+                  src={photoPreview || profile?.photoURL}
                   name={profile?.displayName}
                   borderWidth={4}
                   borderColor={cardBg}
@@ -459,7 +549,7 @@ const Profile: React.FC = () => {
                       <Icon as={FaUser} color="#3182ce" boxSize={5} mt={1} />
                       <Box>
                         <Text fontWeight="bold" color="#1a365d" fontSize="lg">
-                          {team.name}
+                          {teamData.team.name}
                         </Text>
                         <Text fontSize="md" color="#3182ce">
                           {teamData.manager?.uid === user.uid ? "Manager" : "Player"}
@@ -489,12 +579,12 @@ const Profile: React.FC = () => {
                         <Box
                           h="110px"
                           w="100%"
-                          bg={team.coverPhotoUrl ? undefined : "#b5e3fa"}
-                          bgImage={team.coverPhotoUrl ? `url(${team.coverPhotoUrl})` : undefined}
+                          bg={teamData.team.coverPhotoUrl ? undefined : "#b5e3fa"}
+                          bgImage={teamData.team.coverPhotoUrl ? `url(${teamData.team.coverPhotoUrl})` : undefined}
                           bgSize="cover"
                           bgPos="center"
                         />
-                        {team.coverPhotoUrl && (
+                        {teamData.team.coverPhotoUrl && (
                           <Box
                             position="absolute"
                             top={0}
@@ -523,7 +613,7 @@ const Profile: React.FC = () => {
                       <Box h="64px" />
                       <Box px={6} pb={5} pt={2}>
                         <Text fontWeight="bold" fontSize="2xl" color="#1a365d" mt={2} mb={1} noOfLines={1}>
-                          {team.name}
+                          {teamData.team.name}
                         </Text>
                         <HStack justify="center" spacing={1} mb={2}>
                           <Icon as={FaUser} color="#3182ce" boxSize={4} />
@@ -638,7 +728,7 @@ const Profile: React.FC = () => {
                     </CardHeader>
                     <CardBody pt={0}>
                       <VStack spacing={4} align="center" mb={4}>
-                        <Avatar size="xl" src={profile?.photoURL} name={profile?.displayName} />
+                        <Avatar size="xl" src={photoPreview || profile?.photoURL} name={profile?.displayName} />
                         <Text fontWeight="bold">{profile?.displayName}</Text>
                         <Text color="gray.400">{profile?.email}</Text>
                         <Button

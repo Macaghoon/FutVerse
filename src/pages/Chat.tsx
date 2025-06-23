@@ -18,13 +18,13 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { FaPaperPlane } from 'react-icons/fa';
-import { getAuth } from 'firebase/auth';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { app } from '../firebaseConfig';
 import NavBar from '../components/NavBar';
-import { getMessagesListener, sendMessage, listenForUserChats } from '../utils/firestoreChat';
+import { getMessagesListener, sendMessage, listenForUserChats, getOrCreateChat } from '../utils/firestoreChat';
 import type { Message, ChatData } from '../utils/firestoreChat';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { User } from "firebase/auth";
 import { useGlobalState } from '../context/GlobalState';
 
@@ -34,9 +34,9 @@ const db = getFirestore(app);
 // Custom hook for managing all chat data and state
 const useChatData = () => {
   const location = useLocation();
-  const [chats, setChats] = useState<ChatData[]>([]);
-  const [selectedChat, setSelectedChat] = useState<ChatData | null>(null);
-  const [otherUsers, setOtherUsers] = useState<Record<string, User>>({});
+  const [chats, setChats] = useState<any[]>([]);
+  const [selectedChat, setSelectedChat] = useState<any | null>(null);
+  const [otherUsers, setOtherUsers] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentUser = auth.currentUser;
@@ -79,45 +79,72 @@ const useChatData = () => {
     return () => unsubscribe();
   }, [currentUser, toast]);
 
-  // 2. Fetch user data for all participants
+  // 2. Fetch user data for the other participants in the chats
   useEffect(() => {
-    const fetchNewUsers = async () => {
-      const newUsers: Record<string, User> = {};
-      for (const userId of Array.from(usersToFetch)) {
-        const userDoc = await getDoc(doc(db, 'users', userId));
-        if (userDoc.exists()) {
-          newUsers[userId] = userDoc.data() as User;
-        }
-      }
-      setOtherUsers(prev => ({ ...prev, ...newUsers }));
-    };
+    if (!currentUser || chats.length === 0) return;
 
     const usersToFetch = new Set<string>();
     chats.forEach(chat => {
-      const otherUserId = (chat as any).participants.find((p: string) => p !== currentUser?.uid);
+      const otherUserId = chat.participants.find((p: string) => p !== currentUser.uid);
       if (otherUserId && !otherUsers[otherUserId]) {
         usersToFetch.add(otherUserId);
       }
     });
 
-    if (usersToFetch.size > 0) {
-      fetchNewUsers();
-    }
-  }, [chats, currentUser, otherUsers]);
+    if (usersToFetch.size === 0) return;
 
-  // 3. Handle chat selection from URL params
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const chatId = params.get('chat');
-    if (chatId && chats.length > 0) {
-      const chat = chats.find(c => c.id === chatId);
-      if (chat) {
-        setSelectedChat(chat);
+    const fetchNewUsers = async () => {
+      const newUsers: Record<string, any> = {};
+      for (const userId of Array.from(usersToFetch)) {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          newUsers[userId] = userDoc.data();
+        }
       }
-    } else if (chats.length > 0 && !selectedChat) {
-      setSelectedChat(chats[0]);
+      setOtherUsers(prev => ({ ...prev, ...newUsers }));
+    };
+
+    fetchNewUsers();
+  }, [chats, currentUser]);
+
+  // 3. Handle opening a specific chat from navigation state
+  useEffect(() => {
+    const state = location.state as { openChatId?: string };
+    // Only proceed if we have a chat ID from navigation and haven't already selected a chat
+    if (state?.openChatId && !selectedChat) {
+      const chatAlreadyInList = chats.find(c => c.id === state.openChatId);
+
+      if (chatAlreadyInList) {
+        // The listener was fast and the chat is already in our list
+        setSelectedChat(chatAlreadyInList);
+        window.history.replaceState({}, ''); // Clean up state
+      } else if (state.openChatId) { // Ensure openChatId is not undefined
+        // The listener is slower than navigation; fetch the chat doc directly
+        const fetchChatManually = async (chatId: string) => {
+          try {
+            const chatRef = doc(db, "chats", chatId);
+            const chatSnap = await getDoc(chatRef);
+            if (chatSnap.exists()) {
+              const chatData = { id: chatSnap.id, ...chatSnap.data() };
+              // We need to make sure this new chat is also in the main list
+              setChats(prevChats => {
+                if (prevChats.some(c => c.id === chatData.id)) {
+                  return prevChats;
+                }
+                return [chatData, ...prevChats];
+              });
+              setSelectedChat(chatData);
+              window.history.replaceState({}, ''); // Clean up state
+            }
+          } catch (err) {
+            console.error("Failed to manually fetch chat:", err);
+            setError("Could not open the specified chat.");
+          }
+        };
+        fetchChatManually(state.openChatId);
+      }
     }
-  }, [chats, location.search, selectedChat]);
+  }, [chats, location.state, selectedChat, currentUser]);
 
   return {
     chats,
@@ -130,7 +157,7 @@ const useChatData = () => {
   };
 };
 
-const Chat: React.FC = () => {
+const ChatPage: React.FC = () => {
   const {
     chats,
     selectedChat,
@@ -141,28 +168,12 @@ const Chat: React.FC = () => {
     currentUser,
   } = useChatData();
 
-  if (!currentUser) {
-    return (
-      <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
-        <NavBar />
-        <Flex justify="center" align="center" minH="80vh">
-          <VStack spacing={4}>
-            <Heading>Please log in to access chat</Heading>
-          </VStack>
-        </Flex>
-      </Box>
-    );
-  }
-
   if (loading) {
     return (
-      <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
+      <Box>
         <NavBar />
-        <Flex justify="center" align="center" minH="80vh">
-          <VStack spacing={4}>
-            <Spinner size="xl" color="green.500" />
-            <Text>Loading conversations...</Text>
-          </VStack>
+        <Flex justify="center" align="center" h="calc(100vh - 80px)">
+          <Spinner size="xl" />
         </Flex>
       </Box>
     );
@@ -170,61 +181,49 @@ const Chat: React.FC = () => {
 
   if (error) {
     return (
-      <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
+      <Box>
         <NavBar />
-        <Flex justify="center" align="center" minH="80vh">
-          <VStack spacing={4}>
-            <Alert status="error" borderRadius="lg">
-              <AlertIcon />
-              {error}
-            </Alert>
-          </VStack>
+        <Flex justify="center" align="center" h="calc(100vh - 80px)" p={4}>
+           <Alert status="error" borderRadius="lg">
+            <AlertIcon />
+            {error}
+          </Alert>
         </Flex>
       </Box>
     );
   }
-
-  if (chats.length === 0) {
-    return (
-      <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
-        <NavBar />
-        <Flex justify="center" align="center" minH="80vh">
-          <VStack spacing={4}>
-            <Heading>No conversations yet</Heading>
-            <Text>Start chatting with other players!</Text>
-          </VStack>
-        </Flex>
-      </Box>
-    );
-  }
-
-  const getOtherUserInChat = (chat: ChatData) => {
+  
+  const getOtherUserInChat = (chat: any) => {
     if (!chat || !currentUser) return null;
-    const otherUserId = (chat as any).participants.find((p: string) => p !== currentUser.uid);
+    const otherUserId = chat.participants.find((p: string) => p !== currentUser.uid);
     return otherUsers[otherUserId];
   };
 
   return (
-    <Box minH="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
+    <Box h="100vh" bg={useColorModeValue('gray.50', 'gray.900')}>
       <NavBar />
-      <Container maxW="7xl" py={8}>
-        <Flex h="calc(100vh - 200px)" bg={useColorModeValue('white', 'gray.800')} borderRadius="lg" overflow="hidden" boxShadow="xl">
-          {/* Chat List */}
+      <Container maxW="8xl" h="calc(100vh - 80px)" p={0}>
+        <Flex h="full">
           <ChatList
             chats={chats}
             currentUser={currentUser}
             otherUsers={otherUsers}
             onSelectChat={setSelectedChat}
-            selectedChat={selectedChat}
+            selectedChatId={selectedChat?.id}
           />
-
-          {/* Chat Window */}
-          {selectedChat && (
-            <ChatWindow
-              chat={selectedChat}
-              currentUser={currentUser}
-              otherUser={getOtherUserInChat(selectedChat)}
+          <Divider orientation="vertical" />
+          {selectedChat ? (
+            <ChatWindow 
+              key={selectedChat.id} // Add key to force re-mount on chat change
+              chat={selectedChat} 
+              currentUser={currentUser} 
+              otherUser={getOtherUserInChat(selectedChat)} 
             />
+          ) : (
+            <Flex flex={1} justify="center" align="center" direction="column" textAlign="center" p={4}>
+              <Heading size="lg" color={useColorModeValue('gray.400', 'gray.600')}>Select a Chat</Heading>
+              <Text color={useColorModeValue('gray.500', 'gray.500')}>Choose a conversation from the list to start messaging.</Text>
+            </Flex>
           )}
         </Flex>
       </Container>
@@ -233,54 +232,77 @@ const Chat: React.FC = () => {
 };
 
 const ChatList: React.FC<{
-  chats: ChatData[];
-  currentUser: User;
-  otherUsers: Record<string, User>;
-  onSelectChat: (chat: ChatData) => void;
-  selectedChat: ChatData | null;
-}> = ({ chats, currentUser, otherUsers, onSelectChat, selectedChat }) => {
-  const sidebarBg = useColorModeValue('gray.50', 'gray.700');
-  const borderColor = useColorModeValue('gray.200', 'gray.600');
+  chats: any[],
+  currentUser: any,
+  otherUsers: Record<string, any>,
+  onSelectChat: (chat: any) => void,
+  selectedChatId?: string,
+}> = ({ chats, currentUser, otherUsers, onSelectChat, selectedChatId }) => {
+  const listBg = useColorModeValue('white', 'gray.800');
+  const selectedBg = useColorModeValue('green.50', 'green.900');
+
+  if (chats.length === 0) {
+    return (
+      <VStack
+        w={{ base: '100%', md: '350px' }}
+        bg={listBg}
+        p={4}
+        spacing={4}
+        align="stretch"
+        borderRightWidth="1px"
+        borderColor={useColorModeValue('gray.200', 'gray.700')}
+      >
+        <Heading size="md" mb={4}>Conversations</Heading>
+        <Text color="gray.500">No chats yet. Start a conversation from a user's profile!</Text>
+      </VStack>
+    )
+  }
 
   return (
-    <VStack w="300px" bg={sidebarBg} borderRightWidth="1px" borderColor={borderColor} spacing={0}>
-      <Box p={4} w="full" borderBottomWidth="1px" borderColor={borderColor}>
-        <Heading size="md" mb={4}>Conversations</Heading>
-        {chats.map(chat => {
-          const otherUserId = (chat as any).participants.find((p: string) => p !== currentUser.uid);
-          const otherUser = otherUsers[otherUserId];
+    <VStack
+      w={{ base: '100%', md: '350px' }}
+      bg={listBg}
+      p={4}
+      spacing={4}
+      align="stretch"
+      borderRightWidth="1px"
+      borderColor={useColorModeValue('gray.200', 'gray.700')}
+      overflowY="auto"
+    >
+      <Heading size="md" mb={4}>Conversations</Heading>
+      {chats.map(chat => {
+        const otherUserId = chat.participants.find((p: string) => p !== currentUser.uid);
+        const otherUser = otherUsers[otherUserId];
 
-          return (
-            <Box
-              key={chat.id}
-              p={3}
-              cursor="pointer"
-              bg={selectedChat?.id === chat.id ? useColorModeValue('blue.50', 'blue.900') : 'transparent'}
-              borderRadius="md"
-              mb={2}
-              onClick={() => onSelectChat(chat)}
-              _hover={{ bg: useColorModeValue('gray.100', 'gray.600') }}
-            >
-              <HStack spacing={3}>
-                <Avatar size="sm" src={otherUser?.photoURL || undefined} name={otherUser?.displayName || undefined} />
-                <VStack align="start" spacing={0} flex={1}>
-                  <Text fontWeight="medium" fontSize="sm">
-                    {otherUser?.displayName || 'Unknown User'}
-                  </Text>
-                </VStack>
-              </HStack>
-            </Box>
-          );
-        })}
-      </Box>
+        return (
+          <HStack
+            key={chat.id}
+            p={3}
+            borderRadius="lg"
+            cursor="pointer"
+            onClick={() => onSelectChat(chat)}
+            bg={chat.id === selectedChatId ? selectedBg : 'transparent'}
+            _hover={{ bg: useColorModeValue('gray.100', 'gray.700') }}
+            transition="background 0.2s"
+          >
+            <Avatar src={otherUser?.photoURL} name={otherUser?.displayName} />
+            <VStack align="start" spacing={0} w="full" overflow="hidden">
+              <Text fontWeight="bold">{otherUser?.displayName || 'Loading...'}</Text>
+              <Text fontSize="sm" color="gray.500" noOfLines={1}>
+                {chat.lastMessage?.senderId === currentUser.uid && 'You: '}{chat.lastMessage?.text || 'No messages yet'}
+              </Text>
+            </VStack>
+          </HStack>
+        );
+      })}
     </VStack>
   );
 };
 
 const ChatWindow: React.FC<{
-  chat: ChatData,
-  currentUser: User,
-  otherUser: User | null,
+  chat: any,
+  currentUser: any,
+  otherUser: any,
 }> = ({ chat, currentUser, otherUser }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -311,7 +333,7 @@ const ChatWindow: React.FC<{
   return (
     <Flex flex={1} direction="column" bg={windowBg}>
       <HStack p={4} bg={messageBoxBg} borderBottomWidth="1px" borderColor={useColorModeValue('gray.200', 'gray.700')}>
-        <Avatar src={otherUser?.photoURL || undefined} name={otherUser?.displayName || undefined} />
+        <Avatar src={otherUser?.photoURL} name={otherUser?.displayName} />
         <Heading size="md">{otherUser?.displayName || 'Chat'}</Heading>
       </HStack>
       <VStack flex={1} p={4} spacing={4} overflowY="auto">
@@ -360,4 +382,4 @@ const ChatWindow: React.FC<{
   );
 };
 
-export default Chat; 
+export default ChatPage; 

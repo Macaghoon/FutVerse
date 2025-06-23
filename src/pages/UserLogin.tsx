@@ -54,7 +54,7 @@ const UserLogin: React.FC = () => {
         isClosable: true,
       });
       navigate("/home");
-    } catch (err: unknown) {
+    } catch (err: any) {
       setError("Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
