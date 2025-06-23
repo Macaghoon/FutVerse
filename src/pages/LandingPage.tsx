@@ -1,47 +1,20 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Box,
   Heading,
   Button,
   Flex,
   Text,
-  FormControl,
-  FormLabel,
-  Input,
-  Alert,
-  AlertIcon,
-  HStack,
   VStack
 } from "@chakra-ui/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { app } from "../firebaseConfig";
 import { useNavigate } from "react-router-dom";
 import landingWallpaper from "../assets/LandingPageWallpaper.jpg";
 
-const auth = getAuth(app);
 const MotionBox = motion(Box);
 
 const LandingPage: React.FC = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(false);
-
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      setSuccess(true);
-      setTimeout(() => navigate("/home"), 1000);
-    } catch (error: unknown) {
-      setError("Invalid email or password.");
-    }
-  };
 
   const handleKickOff = () => {
     navigate("/home");

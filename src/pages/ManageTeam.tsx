@@ -1,88 +1,136 @@
 import React, { useState, useEffect } from "react";
 import {
   Box,
-  Heading,
-  Flex,
-  Text,
-  Avatar,
   Button,
-  Stack,
-  SimpleGrid,
-  Divider,
-  useColorModeValue,
-  HStack,
-  Input,
-  IconButton,
-  FormControl,
-  FormLabel,
   VStack,
-  Image,
-  useToast,
-  Container,
+  HStack,
+  Text,
+  Heading,
+  Avatar,
+  Badge,
   useDisclosure,
   Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
-  ModalFooter,
   ModalBody,
   ModalCloseButton,
-  Badge,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
-  TabPanel,
+  FormControl,
+  FormLabel,
+  Input,
+  Textarea,
+  useToast,
+  Flex,
+  Grid,
+  GridItem,
   Card,
   CardBody,
   CardHeader,
+  useColorModeValue,
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Alert,
+  AlertIcon,
+  Spinner,
+  Center,
+  Image,
+  AspectRatio,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
   Stat,
   StatLabel,
   StatNumber,
-  Alert,
-  AlertIcon,
+  StatHelpText,
+  StatArrow,
+  Progress,
+  Divider,
+  SimpleGrid,
+  Stack,
+  Icon,
+  Tooltip,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverHeader,
+  PopoverBody,
+  PopoverArrow,
+  PopoverCloseButton,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useBreakpointValue,
+  Wrap,
+  WrapItem,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
+  Select,
+  Checkbox,
+  CheckboxGroup,
+  Radio,
+  RadioGroup,
+  Switch,
+  Slider,
+  SliderTrack,
+  SliderFilledTrack,
+  SliderThumb,
+  SliderMark,
+  RangeSlider,
+  RangeSliderTrack,
+  RangeSliderFilledTrack,
+  RangeSliderThumb,
+  PinInput,
+  PinInputField,
+  Editable,
+  EditablePreview,
+  EditableInput,
+  useEditableControls,
+  ButtonGroup,
+  EditableTextarea,
+  useClipboard,
+  useColorMode,
+  useTheme,
+  useToken,
+  useMediaQuery,
+  useUpdateEffect,
+  useInterval,
+  useTimeout,
+  useBoolean,
+  useCounter,
+  Container,
 } from "@chakra-ui/react";
-import { useNavigate } from "react-router-dom";
+import { FaEdit, FaTrash, FaPlus, FaCrown, FaUserTie, FaUsers, FaTrophy, FaCalendar, FaMapMarkerAlt, FaClock, FaStar, FaHeart, FaShare, FaBookmark, FaEllipsisH, FaExclamationTriangle } from "react-icons/fa";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
-import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
-import { createTeam, getTeamWithManagerAndMembers, updateTeamCoverPhoto } from "../utils/firestoreTeam";
-import { uploadFileToFirebase, validateImageFile } from "../utils/imageUpload";
+import { getFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, limit, onSnapshot, addDoc, deleteDoc, writeBatch, arrayUnion, arrayRemove, increment, serverTimestamp, Timestamp, FieldValue } from "firebase/firestore";
+import { app } from "../firebaseConfig";
+import NavBar from "../components/NavBar";
+import { useNavigate } from "react-router-dom";
+import { useGlobalState } from "../context/GlobalState";
+import { createTeam, getTeamWithManagerAndMembers, addPlayerToTeam, updateTeamCoverPhoto } from "../utils/firestoreTeam";
+import { getMatchesForTeam, submitMatchResult, disputeMatchResult, acceptMatchRequest, declineMatchRequest, getMatchRequestsForTeam, sendMatchRequest, confirmMatchResult } from "../utils/firestoreMatches";
+import type { MatchData, MatchRequestData } from "../utils/firestoreMatches";
+import { uploadFileToFirebase } from "../utils/imageUpload";
 import {
   getPendingRequestsForUser,
   acceptRequest,
   declineRequest,
 } from "../utils/firestoreRequests";
 import type { Request } from "../utils/firestoreRequests";
-import NavBar from "../components/NavBar";
-import { 
-  FaTrophy, 
-  FaUserPlus, 
-  FaUsers, 
-  FaCamera, 
-  FaEnvelope, 
-  FaCalendarCheck, 
-  FaFutbol, 
-  FaPlus, 
-  FaMinus,
-  FaCheckCircle,
-  FaTimes,
-  FaExclamationTriangle,
-  FaCalendarAlt,
-  FaMapMarkerAlt,
-  FaImage,
-} from "react-icons/fa";
-import { Icon } from "@chakra-ui/react";
-import {
-  acceptMatchRequest,
-  declineMatchRequest,
-  getMatchRequestsForTeam,
-  getMatchesForTeam,
-  submitMatchResult,
-  confirmMatchResult,
-  disputeMatchResult,
-} from "../utils/firestoreMatches";
-import type { MatchRequestData, MatchData } from "../utils/firestoreMatches";
 
 const auth = getAuth();
 const db = getFirestore();
@@ -537,12 +585,28 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
       </VStack>
 
       {/* Cover Photo Modal */}
-      <CoverPhotoModal
-        isOpen={isCoverModalOpen}
-        onClose={onCoverModalClose}
-        onPhotoUpdated={handleCoverPhotoUpdated}
-        teamId={teamId}
-      />
+      <Modal isOpen={isCoverModalOpen} onClose={onCoverModalClose} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Update Cover Photo</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <VStack spacing={4}>
+              <AspectRatio ratio={16 / 9} w="full">
+                <Image
+                  src={finalCoverUrl}
+                  alt="Cover Photo"
+                  objectFit="cover"
+                  borderRadius="md"
+                />
+              </AspectRatio>
+              <Text fontSize="sm" color="gray.500">
+                Upload a new cover photo to personalize your team profile
+              </Text>
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
 
       {/* Submit Result Modal */}
       {selectedMatch && (
