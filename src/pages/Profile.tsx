@@ -16,7 +16,6 @@ import {
   Select,
   Divider,
   Badge,
-  IconButton,
   useToast,
   useColorModeValue,
   Card,
@@ -30,24 +29,19 @@ import {
   Tab,
   TabPanel,
   Switch,
-  Link,
   Image as ChakraImage,
-  Alert,
-  AlertIcon,
   Container,
   Stat,
   StatLabel,
   StatNumber,
-  StatHelpText,
   SimpleGrid,
-  Progress,
   Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
   ModalBody,
   ModalCloseButton,
-  useDisclosure,
+  Icon,
 } from "@chakra-ui/react";
 import { getAuth, updateProfile } from "firebase/auth";
 import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
@@ -61,28 +55,17 @@ import {
   FaTrophy,
   FaUsers,
   FaCog,
-  FaHeart,
-  FaShieldAlt,
   FaEdit,
   FaSave,
   FaTimes,
-  FaFacebook,
-  FaTwitter,
-  FaInstagram,
-  FaLinkedin,
   FaFutbol,
-  FaStar,
   FaBell,
   FaEye,
-  FaEyeSlash,
-  FaCheckCircle,
-  FaExclamationTriangle,
+  FaShieldAlt,
   FaUserEdit,
-  FaSignOutAlt,
-  FaTrash,
+  FaExclamationTriangle,
   FaCamera,
 } from "react-icons/fa";
-import { Icon } from "@chakra-ui/react";
 import NavBar from "../components/NavBar";
 import { uploadFileToFirebase, validateImageFile } from "../utils/imageUpload";
 import { getTeamWithManagerAndMembers } from "../utils/firestoreTeam";
@@ -136,11 +119,7 @@ const Profile: React.FC = () => {
   const [teamData, setTeamData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
-  const [photoLoading, setPhotoLoading] = useState(false);
   const [isProfileModalOpen, setProfileModalOpen] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [postLoading, setPostLoading] = useState(false);
@@ -148,7 +127,6 @@ const Profile: React.FC = () => {
   const [postImage, setPostImage] = useState<File | null>(null);
   const [postPreview, setPostPreview] = useState('');
   const [postCaption, setPostCaption] = useState('');
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -228,77 +206,6 @@ const Profile: React.FC = () => {
     } catch (error) {
       console.error("Error loading team data:", error);
     }
-  };
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const validation = validateImageFile(file);
-      if (!validation.isValid) {
-        toast({
-          title: "Invalid file",
-          description: validation.error,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-        return;
-      }
-      
-      setProfilePhoto(file);
-      
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPhotoPreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && auth.currentUser) {
-      const validation = validateImageFile(file);
-      if (!validation.isValid) {
-        toast({ title: "Invalid Image", description: validation.error, status: "error" });
-        return;
-      }
-      setPhotoLoading(true);
-      try {
-        const photoURL = await uploadFileToFirebase(file, `user-photos/${auth.currentUser.uid}`);
-        
-        await updateProfile(auth.currentUser, { photoURL });
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
-        await updateDoc(userDocRef, {
-          photoURL: photoURL
-        });
-        
-        setProfile(prev => prev ? { ...prev, photoURL: photoURL } : null);
-        toast({ title: "Profile photo updated!", status: "success" });
-
-      } catch (error) {
-        toast({ title: "Upload Failed", description: String(error), status: "error" });
-      } finally {
-        setPhotoLoading(false);
-      }
-    }
-  };
-
-  const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setPhotoLoading(true);
-    try {
-      const url = await uploadFileToFirebase(file, `user-photos/${user.uid}`);
-      await updateProfile(user, { photoURL: url });
-      await updateDoc(doc(db, 'users', user.uid), { photoURL: url });
-      setProfile(prev => prev ? { ...prev, photoURL: url } : prev);
-      setPhotoPreview("");
-      toast({ title: 'Profile photo updated!', status: 'success', duration: 2000 });
-    } catch (err: any) {
-      toast({ title: 'Failed to update photo', description: err.message, status: 'error', duration: 3000 });
-    }
-    setPhotoLoading(false);
   };
 
   const handleSave = async () => {
@@ -490,7 +397,7 @@ const Profile: React.FC = () => {
               <Flex justify="center" align="center" mt={-12} mb={2}>
                 <Avatar 
                   size="xl" 
-                  src={photoPreview || profile?.photoURL}
+                  src={postPreview || profile?.photoURL}
                   name={profile?.displayName}
                   borderWidth={4}
                   borderColor={cardBg}
@@ -728,26 +635,18 @@ const Profile: React.FC = () => {
                     </CardHeader>
                     <CardBody pt={0}>
                       <VStack spacing={4} align="center" mb={4}>
-                        <Avatar size="xl" src={photoPreview || profile?.photoURL} name={profile?.displayName} />
+                        <Avatar size="xl" src={postPreview || profile?.photoURL} name={profile?.displayName} />
                         <Text fontWeight="bold">{profile?.displayName}</Text>
                         <Text color="gray.400">{profile?.email}</Text>
                         <Button
                           size="sm"
                           colorScheme="teal"
                           variant="outline"
-                          isLoading={photoLoading}
                           leftIcon={<FaCamera />}
                           onClick={() => document.getElementById('profile-photo-input')?.click()}
                         >
                           Change Photo
                         </Button>
-                        <Input
-                          id="profile-photo-input"
-                          type="file"
-                          accept="image/*"
-                          display="none"
-                          onChange={handleProfilePhotoUpload}
-                        />
                       </VStack>
                       <Tabs variant="enclosed" colorScheme="green">
                         <TabList>
