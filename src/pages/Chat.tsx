@@ -18,15 +18,14 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { FaPaperPlane } from 'react-icons/fa';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { app } from '../firebaseConfig';
 import NavBar from '../components/NavBar';
-import { getMessagesListener, sendMessage, listenForUserChats, getOrCreateChat } from '../utils/firestoreChat';
-import type { Message, ChatData } from '../utils/firestoreChat';
-import { useLocation, useNavigate } from 'react-router-dom';
-import type { User } from "firebase/auth";
+import { getMessagesListener, sendMessage, listenForUserChats } from '../utils/firestoreChat';
+import { useLocation } from 'react-router-dom';
 import { useGlobalState } from '../context/GlobalState';
+import type { Message } from '../utils/firestoreChat';
 
 const auth = getAuth(app);
 const db = getFirestore(app);

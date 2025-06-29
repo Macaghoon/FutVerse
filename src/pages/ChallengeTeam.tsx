@@ -15,14 +15,11 @@ import {
 } from "@chakra-ui/react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth } from "firebase/auth";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { app } from "../firebaseConfig";
 import { sendMatchRequest } from "../utils/firestoreMatches";
 import { getTeamForManager } from "../utils/firestoreTeams";
 import NavBar from "../components/NavBar";
-
 const auth = getAuth(app);
-const db = getFirestore(app);
 
 const ChallengeTeam: React.FC = () => {
   const [managerTeam, setManagerTeam] = useState<any>(null);

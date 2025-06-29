@@ -67,7 +67,6 @@ import {
   FaCamera,
 } from "react-icons/fa";
 import NavBar from "../components/NavBar";
-import { uploadFileToFirebase, validateImageFile } from "../utils/imageUpload";
 import { getTeamWithManagerAndMembers } from "../utils/firestoreTeam";
 import { addUserPost, getUserPosts, deleteUserPost } from '../utils/firestoreUserPosts';
 
