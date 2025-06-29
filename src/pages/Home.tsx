@@ -3,7 +3,6 @@ import {
   Box,
   Heading,
   Button,
-  Flex,
   Text,
   HStack,
   VStack,
@@ -13,20 +12,16 @@ import {
   useColorModeValue,
   Container,
   Badge,
-  SimpleGrid,
-  Image,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { 
   FaUsers, 
   FaTrophy, 
-  FaCalendarAlt,
-  FaMapMarkerAlt,
   FaArrowRight,
   FaPlay,
   FaCog
 } from "react-icons/fa";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { app } from "../firebaseConfig";
 import NavBar from "../components/NavBar";
 
@@ -58,8 +53,8 @@ const auth = getAuth(app);
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [setUser] = useState<any>(null);
+  const [, setLoading] = useState(true);
 
   const bgGradient = useColorModeValue(
     "linear(to-br, gray.50, blue.50, green.50)",
@@ -79,10 +74,6 @@ const Home: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/login");
-  };
 
   return (
     <Box minH="100vh" bgGradient={bgGradient}>
