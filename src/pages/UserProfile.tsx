@@ -302,11 +302,7 @@ const UserProfile: React.FC = () => {
               </Stat>
             </Box>
             {/* Badges */}
-            <HStack mt={2} spacing={2} flexWrap="wrap" justify="center">
-              {teamData && teamData.manager?.uid === profile.uid && (
-                <Badge colorScheme="blue" variant="subtle" borderRadius="full" px={3}>MANAGER</Badge>
-              )}
-            </HStack>
+
             {/* Team card header: icon + team name, then role label below, with colored box and matching size/font */}
             {teamData && teamData.team && (
               <Box mb={1} mt={0.5} bg="#eaf6fd" border="1.5px solid #b5e3fa" borderRadius="12px" px={4} py={2} minH="60px" w="100%" display="flex" flexDirection="column" justifyContent="center">
