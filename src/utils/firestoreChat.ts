@@ -3,17 +3,13 @@ import {
   collection,
   doc,
   addDoc,
-  getDocs,
   query,
   where,
   orderBy,
   serverTimestamp,
   Timestamp,
   onSnapshot,
-  or,
-  and,
   setDoc,
-  limit,
   updateDoc,
   getDoc,
 } from "firebase/firestore";
@@ -21,7 +17,6 @@ import { app } from "../firebaseConfig";
 import { createNotification } from "./firestoreNotifications";
 
 const db = getFirestore(app);
-const chatsRef = collection(db, "chats");
 
 export interface Message {
   id?: string;

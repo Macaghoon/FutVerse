@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Box, Button, FormControl, FormLabel, Input, Heading, Flex, Text, Icon, useColorModeValue } from "@chakra-ui/react";
-import { FaUsers, FaMapMarkerAlt, FaEnvelope } from "react-icons/fa";
+import { Box, Button, FormControl, FormLabel, Input, Heading, Flex, Text, useColorModeValue } from "@chakra-ui/react";
 import NavBar from "../components/NavBar";
 
 const TeamRegistration: React.FC = () => {
