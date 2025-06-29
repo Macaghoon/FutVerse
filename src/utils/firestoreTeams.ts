@@ -1,4 +1,4 @@
-import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, getDoc, arrayUnion } from "firebase/firestore";
+import { getFirestore, doc, setDoc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { app } from "../firebaseConfig";
 import {

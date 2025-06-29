@@ -8,12 +8,10 @@ import {
   query,
   where,
   updateDoc,
-  deleteDoc,
   writeBatch,
   serverTimestamp,
 } from "firebase/firestore";
 import { app } from "../firebaseConfig";
-import { addPlayerToTeam } from "./firestoreTeam";
 import { createNotification } from "./firestoreNotifications";
 
 const db = getFirestore(app);

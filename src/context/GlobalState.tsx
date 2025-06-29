@@ -2,10 +2,7 @@ import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, getDoc } from 'firebase/firestore';
-import { getMatchRequestsForTeam } from '../utils/firestoreMatches';
-import { listenForUserChats } from '../utils/firestoreChat';
-import type { ChatData } from '../utils/firestoreChat';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { 
   listenForUnreadNotificationsByType,
   markAllNotificationsAsRead 
