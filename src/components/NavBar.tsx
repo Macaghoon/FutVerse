@@ -25,16 +25,13 @@ import {
   InputGroup,
   InputLeftElement,
   VStack,
-  PopoverArrow,
-  PopoverCloseButton,
-  PopoverHeader,
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
 import { useNavigate } from "react-router-dom";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { app } from "../firebaseConfig";
-import { FaUser, FaSignOutAlt, FaBell, FaEnvelope, FaUsers } from "react-icons/fa";
+import { FaUser, FaSignOutAlt, FaBell, FaEnvelope } from "react-icons/fa";
 import { Icon } from "@chakra-ui/react";
 import { useDebounce } from "../hooks/useDebounce";
 import { globalSearch } from "../utils/firestoreSearch";
@@ -119,10 +116,6 @@ const NavBar: React.FC = () => {
   const navBgColor = useColorModeValue("white", "gray.800");
   const navTextColor = useColorModeValue("gray.700", "white");
   const searchBgColor = useColorModeValue("white", "gray.700");
-
-  const iconColor = useColorModeValue("gray.800", "white");
-  const hoverBg = useColorModeValue("green.50", "gray.700");
-  const activeBg = useColorModeValue("green.100", "gray.600");
 
   return (
     <Flex
