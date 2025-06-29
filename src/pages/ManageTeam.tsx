@@ -6,24 +6,17 @@ import {
   Text,
   Avatar,
   Button,
-  Stack,
   SimpleGrid,
   Divider,
   useColorModeValue,
   HStack,
-  Spacer,
   Input,
   IconButton,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   FormControl,
   FormLabel,
   VStack,
   Image,
   useToast,
-  Spinner,
   Container,
   useDisclosure,
   Modal,
@@ -33,7 +26,6 @@ import {
   ModalFooter,
   ModalBody,
   ModalCloseButton,
-  Select,
   Badge,
   Tabs,
   TabList,
@@ -46,53 +38,41 @@ import {
   Stat,
   StatLabel,
   StatNumber,
-  StatHelpText,
-  Progress,
   Alert,
   AlertIcon,
 } from "@chakra-ui/react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { SearchIcon, AddIcon } from "@chakra-ui/icons";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
-import { app } from "../firebaseConfig";
-import { getFirestore, doc, getDoc, updateDoc, arrayRemove, writeBatch } from "firebase/firestore";
-import { createTeam, getTeamWithManagerAndMembers, updateTeamLogo, updateTeamCoverPhoto } from "../utils/firestoreTeam";
+import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
+import { createTeam, getTeamWithManagerAndMembers, updateTeamCoverPhoto } from "../utils/firestoreTeam";
 import { uploadFileToFirebase, validateImageFile } from "../utils/imageUpload";
 import {
   getPendingRequestsForUser,
   acceptRequest,
   declineRequest,
 } from "../utils/firestoreRequests";
-import type { Request, RequestType } from "../utils/firestoreRequests";
+import type { Request } from "../utils/firestoreRequests";
 import NavBar from "../components/NavBar";
 import { 
   FaTrophy, 
   FaUserPlus, 
   FaUsers, 
   FaCamera, 
-  FaUpload, 
   FaUserTie, 
   FaEnvelope, 
-  FaIdCard, 
   FaCalendarCheck, 
   FaFutbol, 
   FaPlus, 
   FaMinus,
-  FaCrown,
-  FaChartLine,
-  FaBell,
-  FaCheckCircle,
-  FaTimes,
-  FaExclamationTriangle,
   FaCalendarAlt,
   FaMapMarkerAlt,
-  FaShieldAlt,
-  FaEdit,
   FaTrash,
-  FaEye,
-  FaEyeSlash,
   FaImage,
+  FaExclamationTriangle,
+  FaEye,
+  FaCheckCircle,
+  FaTimes,
 } from "react-icons/fa";
 import { Icon } from "@chakra-ui/react";
 import {
@@ -1202,7 +1182,7 @@ const SubmitResultModal: React.FC<{
   onSubmit: (result: MatchData['result']) => void;
   teamData: any; // Contains members of both teams
   managerId: string;
-}> = ({ isOpen, onClose, match, onSubmit, teamData, managerId }) => {
+}> = ({ isOpen, onClose, match, onSubmit, managerId }) => {
   const [scores, setScores] = useState<[number, number]>([0, 0]);
   const [scorers, setScorers] = useState<Record<string, number>>({});
   const toast = useToast();
@@ -1341,7 +1321,6 @@ const CurrentSquad: React.FC<{
 }> = ({ members, managerId, onRemovePlayer, teamId }) => {
   const cardBg = useColorModeValue("white", "gray.800");
   const textColor = useColorModeValue("gray.700", "white");
-  const mutedTextColor = useColorModeValue("gray.600", "gray.300");
   
   return (
     <Card bg={cardBg} borderRadius="2xl" boxShadow="xl">
@@ -1404,23 +1383,6 @@ const CurrentSquad: React.FC<{
       )}
       </CardBody>
     </Card>
-  );
-};
-
-const TeamRegistrationPrompt: React.FC = () => {
-  return (
-    <Box>
-      <Heading size="lg" mb={4}>
-        <Icon as={FaTrophy} mr={2} />
-        Team Registration
-      </Heading>
-      <Text>
-        It seems like you're not a manager of a team yet. Register your team to start managing it.
-      </Text>
-      <Button colorScheme="green" mt={4}>
-        Register Team
-      </Button>
-    </Box>
   );
 };
 
