@@ -20,7 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   FaUsers, 
   FaTrophy, 
-  FaCalendarAlt, 
+  FaCalendarAlt,
   FaMapMarkerAlt,
   FaArrowRight,
   FaPlay,
