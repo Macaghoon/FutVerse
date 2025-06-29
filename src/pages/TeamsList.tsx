@@ -7,7 +7,6 @@ import {
   Avatar,
   Flex,
   useColorModeValue,
-  Spinner,
   Input,
   InputGroup,
   InputLeftElement,
@@ -15,16 +14,12 @@ import {
   CardBody,
   VStack,
   HStack,
-  Badge,
-  IconButton,
   useToast,
   Skeleton,
-  SkeletonText,
   Container,
   Stat,
   StatLabel,
   StatNumber,
-  StatHelpText,
   Button,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
@@ -35,10 +30,7 @@ import {
   FaUserTie, 
   FaSearch, 
   FaUsers, 
-  FaStar,
-  FaEye,
-  FaCrown
-} from "react-icons/fa";
+  FaEye} from "react-icons/fa";
 import { Icon } from "@chakra-ui/react";
 
 interface TeamData {
@@ -57,7 +49,6 @@ const TeamCard = ({ team }: { team: TeamData }) => {
   const navigate = useNavigate();
   const cardBg = useColorModeValue("white", "gray.800");
   const mutedTextColor = useColorModeValue("gray.600", "gray.300");
-  const fallbackBg = useColorModeValue("linear(to-r, gray.100, gray.200)", "linear(to-r, gray.700, gray.800)");
 
   return (
     <Card
@@ -171,7 +162,6 @@ const TeamsList: React.FC = () => {
   const [filteredTeams, setFilteredTeams] = useState<TeamData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const bgColor = useColorModeValue("gray.50", "gray.900");
   const toast = useToast();
 
   useEffect(() => {

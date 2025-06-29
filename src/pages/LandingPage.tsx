@@ -22,7 +22,7 @@ const auth = getAuth(app);
 const MotionBox = motion(Box);
 
 const LandingPage: React.FC = () => {
-  const [showLogin, setShowLogin] = useState(false);
+  const [showLogin] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

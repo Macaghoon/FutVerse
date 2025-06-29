@@ -25,7 +25,6 @@ import { getTeamWithManagerAndMembers } from "../utils/firestoreTeam";
 import NavBar from "../components/NavBar";
 import { 
   FaTrophy, 
-  FaUserTie, 
   FaUsers, 
   FaUserPlus, 
   FaFutbol,
