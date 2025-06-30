@@ -138,7 +138,7 @@ function ManageTeam() {
           userData.role === "manager" && userData.teamId ? (
             <ManageTeamDashboard teamId={userData.teamId} managerId={user.uid} />
           ) : (
-            <TeamRegistrationForm onRegistered={() => window.location.reload()} />
+            <TeamRegistrationForm />
           )
         ) : (
           <Flex justify="center" align="center" minH="60vh">
@@ -563,7 +563,7 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
   );
 }
 
-function TeamRegistrationForm({ onRegistered }: { onRegistered: (teamId: string) => void }) {
+function TeamRegistrationForm() {
   const [teamName, setTeamName] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
