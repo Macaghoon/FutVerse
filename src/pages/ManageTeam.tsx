@@ -137,6 +137,11 @@ function ManageTeam() {
         {user && userData ? (
           userData.role === "manager" && userData.teamId ? (
             <ManageTeamDashboard teamId={userData.teamId} managerId={user.uid} />
+          ) : userData.teamId ? (
+            <Box textAlign="center" mt={8}>
+              <Heading size="md" color="red.500">You are already in a team.</Heading>
+              <Text mt={2}>You must leave your current team before registering a new one.</Text>
+            </Box>
           ) : (
             <TeamRegistrationForm />
           )

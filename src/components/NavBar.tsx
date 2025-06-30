@@ -166,7 +166,7 @@ const NavBar: React.FC = () => {
           _hover={{ color: "green.500", bg: "gray.100" }}
           onClick={() => navigate("/manage-team")}
         >
-          Manage Team
+          My Team
         </Button>
       </HStack>
       <Spacer />
