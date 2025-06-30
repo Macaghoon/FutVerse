@@ -132,7 +132,7 @@ const Home: React.FC = () => {
               fontSize="lg"
               leftIcon={<FaPlay />}
               rightIcon={<FaArrowRight />}
-              onClick={() => navigate("/find-match")}
+              onClick={() => navigate("/teams")}
               _hover={{
                 transform: "translateY(-2px)",
                 boxShadow: "xl",
