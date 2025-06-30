@@ -135,13 +135,8 @@ function ManageTeam() {
       <NavBar />
       <Container maxW="7xl" py={8}>
         {user && userData ? (
-          userData.role === "manager" && userData.teamId ? (
-            <ManageTeamDashboard teamId={userData.teamId} managerId={user.uid} />
-          ) : userData.teamId ? (
-            <Box textAlign="center" mt={8}>
-              <Heading size="md" color="red.500">You are already in a team.</Heading>
-              <Text mt={2}>You must leave your current team before registering a new one.</Text>
-            </Box>
+          userData.teamId ? (
+            <ManageTeamDashboard teamId={userData.teamId} managerId={userData.role === "manager" ? user.uid : undefined} />
           ) : (
             <TeamRegistrationForm />
           )
@@ -158,7 +153,7 @@ function ManageTeam() {
   );
 }
 
-function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId: string }) {
+function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId: string | undefined }) {
   const [teamData, setTeamData] = useState<any>(null);
   const [applications, setApplications] = useState<Request[]>([]);
   const [matchRequests, setMatchRequests] = useState<(MatchRequestData & { id: string })[]>([]);
@@ -190,7 +185,7 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
       const data = await getTeamWithManagerAndMembers(teamId);
       setTeamData(data);
       
-      const appRequests = await getPendingRequestsForUser(managerId);
+      const appRequests = await getPendingRequestsForUser(managerId || "");
       setApplications(appRequests.filter((req) => req.teamId === teamId));
       
       const matchReqs = await getMatchRequestsForTeam(teamId);
@@ -532,7 +527,7 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
           <MatchesSection
             matches={matches}
             currentTeamId={teamId}
-            managerId={managerId}
+            managerId={managerId || ""}
             onOpenSubmitModal={handleOpenSubmitModal}
             onConfirm={handleConfirmResult}
             onDispute={handleDisputeResult}
@@ -540,7 +535,7 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
           />
           <CurrentSquad
             members={teamData.members}
-            managerId={teamData.manager.uid}
+            managerId={managerId || ""}
             onRemovePlayer={handleRemovePlayer}
             teamId={teamId}
           />
@@ -554,7 +549,7 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
           match={selectedMatch}
           onSubmit={handleSubmitResult}
           teamData={teamData}
-          managerId={managerId}
+          managerId={managerId || ""}
         />
       )}
 
@@ -987,7 +982,7 @@ const MatchRequests: React.FC<{
 const MatchesSection: React.FC<{
   matches: (MatchData & { id: string })[];
   currentTeamId: string;
-  managerId: string;
+  managerId: string | undefined;
   onOpenSubmitModal: (match: MatchData & { id: string }) => void;
   onConfirm: (matchId: string) => void;
   onDispute: (matchId: string) => void;
@@ -1025,7 +1020,7 @@ const MatchesSection: React.FC<{
         key={match.id} 
         match={match}
         currentTeamId={currentTeamId}
-        managerId={managerId}
+        managerId={managerId || ""}
         onOpenSubmitModal={onOpenSubmitModal}
         onConfirm={onConfirm}
         onDispute={onDispute}
@@ -1099,7 +1094,7 @@ const MatchesSection: React.FC<{
 const MatchCard: React.FC<{
   match: MatchData & { id: string };
   currentTeamId: string;
-  managerId: string;
+  managerId: string | undefined;
   onOpenSubmitModal: (match: MatchData & { id: string }) => void;
   onConfirm: (matchId: string) => void;
   onDispute: (matchId: string) => void;
@@ -1187,7 +1182,7 @@ const SubmitResultModal: React.FC<{
   match: MatchData & { id: string };
   onSubmit: (result: MatchData['result']) => void;
   teamData: any; // Contains members of both teams
-  managerId: string;
+  managerId: string | undefined;
 }> = ({ isOpen, onClose, match, onSubmit, managerId }) => {
   const [scores, setScores] = useState<[number, number]>([0, 0]);
   const [scorers, setScorers] = useState<Record<string, number>>({});
@@ -1236,15 +1231,12 @@ const SubmitResultModal: React.FC<{
   };
 
   const handleSubmit = () => {
-    const totalGoals = Object.values(scorers).reduce((sum, count) => sum + count, 0);
-    const totalScore = scores[0] + scores[1];
-    if (totalGoals !== totalScore) {
+    if (!managerId) {
       toast({
-        title: "Validation Error",
-        description: "The number of goals assigned to scorers must match the final score.",
+        title: "Access Denied",
+        description: "Only team managers can submit match results.",
         status: "error",
-        duration: 4000,
-        isClosable: true,
+        duration: 3000,
       });
       return;
     }
@@ -1321,7 +1313,7 @@ const SubmitResultModal: React.FC<{
 
 const CurrentSquad: React.FC<{
   members: any[];
-  managerId: string;
+  managerId: string | undefined;
   onRemovePlayer: (playerId: string, teamId: string) => void;
   teamId: string;
 }> = ({ members, managerId, onRemovePlayer, teamId }) => {
@@ -1365,14 +1357,14 @@ const CurrentSquad: React.FC<{
                     <Text fontWeight="semibold" color={textColor}>
                       {player.displayName}
                     </Text>
-                    {player.uid === managerId && (
+                    {managerId && player.uid === managerId && (
                       <Badge colorScheme="yellow" variant="subtle" size="sm">
                         Manager
                       </Badge>
                     )}
                   </VStack>
                 </HStack>
-                {player.uid !== managerId && (
+                {managerId && player.uid !== managerId && (
                   <IconButton
                     aria-label="Remove player"
                     icon={<FaTrash />}
