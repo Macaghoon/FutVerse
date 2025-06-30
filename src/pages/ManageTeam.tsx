@@ -572,6 +572,7 @@ function TeamRegistrationForm({ onRegistered }: { onRegistered: (teamId: string)
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+  const navigate = useNavigate();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'cover') => {
     const file = e.target.files?.[0];
@@ -623,7 +624,7 @@ function TeamRegistrationForm({ onRegistered }: { onRegistered: (teamId: string)
       }
       
       const teamId = await createTeam(teamName, logoUrl, coverUrl);
-      onRegistered(teamId);
+      navigate(`/manage-team/${teamId}`);
       
       toast({
         title: "Team created successfully!",
