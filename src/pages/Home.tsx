@@ -53,7 +53,7 @@ const auth = getAuth(app);
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const [setUser] = useState<any>(null);
+  const [, setUser] = useState(null);
   const [, setLoading] = useState(true);
 
   const bgGradient = useColorModeValue(
@@ -68,7 +68,7 @@ const Home: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       console.log("ManageTeam user:", currentUser);
-      setUser(currentUser);
+      setUser(currentUser as any);
       setLoading(false);
     });
     return () => unsubscribe();

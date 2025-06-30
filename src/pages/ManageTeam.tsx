@@ -40,12 +40,13 @@ import {
   StatNumber,
   Alert,
   AlertIcon,
+  CardFooter,
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
-import { createTeam, getTeamWithManagerAndMembers, updateTeamCoverPhoto } from "../utils/firestoreTeam";
+import { createTeam, getTeamWithManagerAndMembers, updateTeamCoverPhoto, updateTeamName, updateTeamLogo, leaveTeam } from "../utils/firestoreTeam";
 import { uploadFileToFirebase, validateImageFile } from "../utils/imageUpload";
 import {
   getPendingRequestsForUser,
@@ -73,6 +74,7 @@ import {
   FaEye,
   FaCheckCircle,
   FaTimes,
+  FaEdit,
 } from "react-icons/fa";
 import { Icon } from "@chakra-ui/react";
 import {
@@ -93,6 +95,7 @@ function ManageTeam() {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   
   const bgGradient = useColorModeValue(
     "linear(to-br, gray.50, blue.50, green.50)",
@@ -135,11 +138,16 @@ function ManageTeam() {
       <NavBar />
       <Container maxW="7xl" py={8}>
         {user && userData ? (
-          userData.teamId ? (
-            <ManageTeamDashboard teamId={userData.teamId} managerId={userData.role === "manager" ? user.uid : undefined} />
-          ) : (
-            <TeamRegistrationForm />
-          )
+          <>
+            <ManageTeamDashboard
+              teamId={userData.teamId}
+              managerId={userData.role === "manager" ? user.uid : undefined}
+              setUserData={setUserData}
+              navigate={navigate}
+              isActive={!!userData.teamId}
+            />
+            <TeamRegistrationForm isActive={!userData.teamId} />
+          </>
         ) : (
           <Flex justify="center" align="center" minH="60vh">
             <VStack spacing={4}>
@@ -153,7 +161,9 @@ function ManageTeam() {
   );
 }
 
-function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId: string | undefined }) {
+function ManageTeamDashboard(props: { teamId: string, managerId: string | undefined, setUserData: (data: any) => void, navigate: (path: string) => void, isActive: boolean }) {
+  if (!props.isActive) return null;
+  const { teamId, managerId, setUserData, navigate } = props;
   const [teamData, setTeamData] = useState<any>(null);
   const [applications, setApplications] = useState<Request[]>([]);
   const [matchRequests, setMatchRequests] = useState<(MatchRequestData & { id: string })[]>([]);
@@ -171,6 +181,16 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
     isOpen: isCoverModalOpen, 
     onOpen: onCoverModalOpen, 
     onClose: onCoverModalClose 
+  } = useDisclosure();
+  const { 
+    isOpen: isNameModalOpen, 
+    onOpen: onNameModalOpen, 
+    onClose: onNameModalClose 
+  } = useDisclosure();
+  const { 
+    isOpen: isLogoModalOpen, 
+    onOpen: onLogoModalOpen, 
+    onClose: onLogoModalClose 
   } = useDisclosure();
   
   const [selectedMatch, setSelectedMatch] = useState<(MatchData & { id: string }) | null>(null);
@@ -222,6 +242,32 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
     }));
     // Close the modal
     onCoverModalClose();
+  };
+
+  const handleTeamNameUpdated = (newName: string) => {
+    // Optimistically update the UI
+    setTeamData((prevData: any) => ({
+      ...prevData,
+      team: {
+        ...prevData.team,
+        name: newName,
+      },
+    }));
+    // Close the modal
+    onNameModalClose();
+  };
+
+  const handleTeamLogoUpdated = (newLogoUrl: string) => {
+    // Optimistically update the UI
+    setTeamData((prevData: any) => ({
+      ...prevData,
+      team: {
+        ...prevData.team,
+        logoUrl: newLogoUrl,
+      },
+    }));
+    // Close the modal
+    onLogoModalClose();
   };
 
   const handleSubmitResult = async (result: MatchData['result']) => {
@@ -360,25 +406,47 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
 
       toast({
         title: "Player Removed",
-        description: "The player has been successfully kicked from the team.",
+        description: "The player has been successfully removed from the team.",
         status: "success",
         duration: 3000,
         isClosable: true,
       });
-      console.log('[10] Toast shown.');
-    } catch (e: unknown) {
-      console.error("Error during player removal process:", e);
-      
-      let message = "An unexpected error occurred. Please see console for details.";
-      if (e instanceof Error) {
-        message = e.message;
-      } else if (typeof e === 'string') {
-        message = e;
-      }
-
+    } catch (error: any) {
+      console.error('[ERROR] Failed to remove player:', error);
       toast({
-        title: "Failed to remove player",
-        description: message,
+        title: "Error Removing Player",
+        description: error.message || "An error occurred while removing the player.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleLeaveTeam = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("You must be logged in to leave a team");
+      }
+      await leaveTeam(currentUser.uid);
+      toast({
+        title: "Successfully Left Team",
+        description: "You have left the team successfully.",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      // Refetch user data and update state
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (userDoc.exists()) {
+        setUserData(userDoc.data());
+      }
+      navigate("/home");
+    } catch (error: any) {
+      toast({
+        title: "Error Leaving Team",
+        description: error.message || "An error occurred while leaving the team.",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -458,29 +526,61 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
             style={{ backdropFilter: 'blur(1px)' }}
           />
 
-          <IconButton
-            aria-label="Change cover photo"
-            icon={<FaCamera />}
-            position="absolute"
-            top={4}
-            right={4}
-            size="sm"
-            colorScheme="whiteAlpha"
-            borderRadius="full"
-            onClick={onCoverModalOpen}
-          />
+          {managerId && (
+            <IconButton
+              aria-label="Change cover photo"
+              icon={<FaCamera />}
+              position="absolute"
+              top={4}
+              right={4}
+              size="sm"
+              colorScheme="whiteAlpha"
+              borderRadius="full"
+              onClick={onCoverModalOpen}
+            />
+          )}
 
           <VStack spacing={4} position="relative" zIndex={1} textAlign="center">
-              <Avatar 
-                size="2xl" 
-                src={team.logoUrl} 
-                name={team.name} 
-              bg="white"
-              padding="2px"
-            />
-            <Heading size="lg" color="white" textShadow="1px 1px 3px rgba(0,0,0,0.4)">
-              {team.name}
-            </Heading>
+              <Box position="relative">
+                <Avatar 
+                  size="2xl" 
+                  src={team.logoUrl} 
+                  name={team.name} 
+                  bg="white"
+                  padding="2px"
+                />
+                {managerId && (
+                  <IconButton
+                    aria-label="Change team logo"
+                    icon={<FaCamera />}
+                    position="absolute"
+                    bottom={0}
+                    right={0}
+                    size="sm"
+                    colorScheme="blue"
+                    borderRadius="full"
+                    onClick={onLogoModalOpen}
+                  />
+                )}
+              </Box>
+              <Box position="relative">
+                <Heading size="lg" color="white" textShadow="1px 1px 3px rgba(0,0,0,0.4)">
+                  {team.name}
+                </Heading>
+                {managerId && (
+                  <IconButton
+                    aria-label="Change team name"
+                    icon={<FaEdit />}
+                    position="absolute"
+                    top={0}
+                    right={-10}
+                    size="sm"
+                    colorScheme="whiteAlpha"
+                    borderRadius="full"
+                    onClick={onNameModalOpen}
+                  />
+                )}
+              </Box>
           </VStack>
         </Box>
 
@@ -537,6 +637,7 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
             members={teamData.members}
             managerId={managerId || ""}
             onRemovePlayer={handleRemovePlayer}
+            onLeaveTeam={handleLeaveTeam}
             teamId={teamId}
           />
         </VStack>
@@ -559,11 +660,27 @@ function ManageTeamDashboard({ teamId, managerId }: { teamId: string, managerId:
         teamId={teamId}
         onCoverPhotoUpdated={handleCoverPhotoUpdated}
       />
+
+      <UpdateTeamNameModal
+        isOpen={isNameModalOpen}
+        onClose={onNameModalClose}
+        teamId={teamId}
+        currentName={teamData?.team?.name || ""}
+        onTeamNameUpdated={handleTeamNameUpdated}
+      />
+
+      <UpdateTeamLogoModal
+        isOpen={isLogoModalOpen}
+        onClose={onLogoModalClose}
+        teamId={teamId}
+        onTeamLogoUpdated={handleTeamLogoUpdated}
+      />
     </React.Fragment>
   );
 }
 
-function TeamRegistrationForm() {
+function TeamRegistrationForm({ isActive }: { isActive: boolean }) {
+  if (!isActive) return null;
   const [teamName, setTeamName] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
@@ -1315,10 +1432,12 @@ const CurrentSquad: React.FC<{
   members: any[];
   managerId: string | undefined;
   onRemovePlayer: (playerId: string, teamId: string) => void;
+  onLeaveTeam: () => void;
   teamId: string;
-}> = ({ members, managerId, onRemovePlayer, teamId }) => {
+}> = ({ members, managerId, onRemovePlayer, onLeaveTeam, teamId }) => {
   const cardBg = useColorModeValue("white", "gray.800");
   const textColor = useColorModeValue("gray.700", "white");
+  const navigate = useNavigate();
   
   return (
     <Card bg={cardBg} borderRadius="2xl" boxShadow="xl">
@@ -1380,6 +1499,23 @@ const CurrentSquad: React.FC<{
         </VStack>
       )}
       </CardBody>
+      {!managerId && (
+        <CardFooter pt={0}>
+          <Button
+            leftIcon={<FaTimes />}
+            colorScheme="red"
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              await onLeaveTeam();
+              navigate("/home");
+            }}
+            w="full"
+          >
+            Leave Team
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 };
@@ -1476,6 +1612,180 @@ function UpdateCoverPhotoModal({ isOpen, onClose, teamId, onCoverPhotoUpdated }:
             onClick={handleUpload}
             isLoading={loading}
             isDisabled={!coverFile}
+          >
+            Upload & Save
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+}
+
+function UpdateTeamNameModal({ isOpen, onClose, teamId, currentName, onTeamNameUpdated }: {
+  isOpen: boolean;
+  onClose: () => void;
+  teamId: string;
+  currentName: string;
+  onTeamNameUpdated: (newName: string) => void;
+}) {
+  const [teamName, setTeamName] = useState(currentName);
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  const handleSubmit = async () => {
+    if (!teamName.trim()) {
+      toast({ title: "Team name is required", status: 'warning', duration: 3000 });
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await updateTeamName(teamId, teamName.trim());
+      toast({ title: "Team name updated!", status: 'success', duration: 3000 });
+      onTeamNameUpdated(teamName.trim());
+    } catch (error: any) {
+      toast({ 
+        title: "Update Failed", 
+        description: error.message || "An error occurred while updating the team name.", 
+        status: 'error', 
+        duration: 3000 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Update Team Name</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <FormControl>
+            <FormLabel>Team Name</FormLabel>
+            <Input
+              placeholder="Enter new team name"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+            />
+          </FormControl>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" mr={3} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            colorScheme="green"
+            onClick={handleSubmit}
+            isLoading={loading}
+            isDisabled={!teamName.trim()}
+          >
+            Update Name
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+}
+
+function UpdateTeamLogoModal({ isOpen, onClose, teamId, onTeamLogoUpdated }: {
+  isOpen: boolean;
+  onClose: () => void;
+  teamId: string;
+  onTeamLogoUpdated: (newLogoUrl: string) => void;
+}) {
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        toast({ title: "Invalid file", description: validation.error, status: 'error', duration: 3000 });
+        return;
+      }
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => setLogoPreview(event.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!logoFile) {
+      toast({ title: "No file selected", status: 'warning', duration: 3000 });
+      return;
+    }
+    setLoading(true);
+    try {
+      const logoUrl = await uploadFileToFirebase(logoFile, `team-logos/${teamId}`);
+      await updateTeamLogo(teamId, logoUrl);
+      toast({ title: "Team logo updated!", status: 'success', duration: 3000 });
+      onTeamLogoUpdated(logoUrl);
+    } catch (error: any) {
+      let description = "An unknown error occurred during upload.";
+      if (error.message) {
+        description = error.message;
+      }
+      toast({ 
+        title: "Upload Failed", 
+        description: description, 
+        status: 'error', 
+        duration: 9000, 
+        isClosable: true 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Update Team Logo</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <VStack spacing={4}>
+            <FormControl>
+              <FormLabel>Team Logo</FormLabel>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                p={1}
+              />
+            </FormControl>
+            {logoPreview && (
+              <Box textAlign="center">
+                <Text fontSize="sm" color="gray.600" mb={2}>Preview:</Text>
+                <Image 
+                  src={logoPreview} 
+                  alt="Logo preview" 
+                  boxSize="100px"
+                  objectFit="cover"
+                  borderRadius="full"
+                  border="2px solid"
+                  borderColor="gray.200"
+                  mx="auto"
+                />
+              </Box>
+            )}
+          </VStack>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" mr={3} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            colorScheme="green"
+            onClick={handleUpload}
+            isLoading={loading}
+            isDisabled={!logoFile}
           >
             Upload & Save
           </Button>

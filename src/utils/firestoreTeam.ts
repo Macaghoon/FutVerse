@@ -1,4 +1,4 @@
-import { getFirestore, doc, setDoc, updateDoc, getDoc, arrayUnion, serverTimestamp } from "firebase/firestore";
+import { getFirestore, doc, setDoc, updateDoc, getDoc, arrayUnion, arrayRemove, serverTimestamp } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 import { app } from "../firebaseConfig";
@@ -49,6 +49,52 @@ export async function addPlayerToTeam(teamId: string, playerId: string) {
   });
 }
 
+export async function leaveTeam(playerId: string) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not authenticated");
+  
+  // Get the user's current team
+  const userRef = doc(db, "users", playerId);
+  const userSnap = await getDoc(userRef);
+  
+  if (!userSnap.exists()) {
+    throw new Error("User not found");
+  }
+  
+  const userData = userSnap.data();
+  const teamId = userData.teamId;
+  
+  if (!teamId) {
+    throw new Error("User is not part of any team");
+  }
+  
+  // Get the team document
+  const teamRef = doc(db, "teams", teamId);
+  const teamSnap = await getDoc(teamRef);
+  
+  if (!teamSnap.exists()) {
+    throw new Error("Team not found");
+  }
+  
+  const teamData = teamSnap.data();
+  
+  // Check if the user is the manager
+  if (teamData.managerId === playerId) {
+    throw new Error("Managers cannot leave their team. Please transfer management or delete the team.");
+  }
+  
+  // Remove player from team members
+  await updateDoc(teamRef, {
+    members: arrayRemove(playerId)
+  });
+  
+  // Update user document to remove team association
+  await updateDoc(userRef, {
+    teamId: null,
+    role: null
+  });
+}
+
 export async function getTeamWithManagerAndMembers(teamId: string) {
   const teamRef = doc(db, "teams", teamId);
   const teamSnap = await getDoc(teamRef);
@@ -67,6 +113,14 @@ export async function getTeamWithManagerAndMembers(teamId: string) {
   }
 
   return { team, manager, members };
+}
+
+export async function updateTeamName(teamId: string, newName: string) {
+  const teamRef = doc(db, "teams", teamId);
+  await updateDoc(teamRef, {
+    name: newName,
+    name_lowercase: newName.toLowerCase()
+  });
 }
 
 export async function uploadTeamLogo(file: File, teamId: string): Promise<string> {

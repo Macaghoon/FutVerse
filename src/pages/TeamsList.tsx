@@ -256,6 +256,7 @@ const TeamsList: React.FC = () => {
               fontWeight="black"
               bgGradient="linear(to-r, green.400, blue.500)"
               bgClip="text"
+              lineHeight="1.2"
             >
               Find Your Next Challenge
             </Heading>

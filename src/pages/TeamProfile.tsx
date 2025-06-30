@@ -69,33 +69,32 @@ const TeamProfile: React.FC = () => {
     fetchTeamData();
   }, [teamId, navigate]);
 
-  useEffect(() => {
-    // Also fetch the currently logged-in user's data
-    const fetchCurrentUser = async () => {
-      if (auth.currentUser) {
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          let teamName = null;
-          // If the user is a manager, fetch their team name
-          if (userData.role === 'manager' && userData.teamId) {
-            const teamDocRef = doc(db, "teams", userData.teamId);
-            const teamDoc = await getDoc(teamDocRef);
-            if (teamDoc.exists()) {
-              teamName = teamDoc.data().name;
-            }
+  // Refetchable user data fetcher
+  const fetchCurrentUser = async () => {
+    if (auth.currentUser) {
+      const userDocRef = doc(db, "users", auth.currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        let teamName = null;
+        if (userData.role === 'manager' && userData.teamId) {
+          const teamDocRef = doc(db, "teams", userData.teamId);
+          const teamDoc = await getDoc(teamDocRef);
+          if (teamDoc.exists()) {
+            teamName = teamDoc.data().name;
           }
-          setCurrentUserData({ id: userDoc.id, ...userData, teamName });
         }
+        setCurrentUserData({ id: userDoc.id, ...userData, teamName });
       }
-    };
+    }
+  };
+
+  useEffect(() => {
     fetchCurrentUser();
-  }, []);
+  }, [auth.currentUser]);
 
   const handleApply = async () => {
     if (!currentUserData || !teamData || !teamId) return;
-
     try {
       await sendRequest(
         "application",
@@ -111,6 +110,7 @@ const TeamProfile: React.FC = () => {
         duration: 3000,
         isClosable: true,
       });
+      await fetchCurrentUser(); // Refetch user data after applying
     } catch (error: any) {
       toast({
         title: "Error sending application.",
@@ -147,7 +147,7 @@ const TeamProfile: React.FC = () => {
   const { team, manager, members } = teamData;
   const coverPhotoUrl = team.coverPhotoUrl || team.logoUrl;
 
-  const canApply = currentUserData?.role === "player" && !currentUserData?.teamId;
+  const canApply = (!currentUserData?.role || currentUserData?.role === "player") && !currentUserData?.teamId;
   const canRequestMatch = currentUserData?.role === "manager" && currentUserData?.teamId && currentUserData?.teamId !== teamId;
 
   return (
